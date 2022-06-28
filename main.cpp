@@ -1,7 +1,9 @@
 #include <iostream>
 #include "Geometry/Vector.h"
 #include "Geometry/Point.h"
-//#include "Geometry/Line.h"
+#include "Geometry/Line.h"
+#include "Geometry/Segment.h"
+#include "Geometry/Plane.h"
 
 using namespace std;
 
@@ -30,6 +32,12 @@ void VectorTest() {
   cout << DotProduct(a, c) << " " << DotProduct(a, b) << " " << CrossProduct(a, b) << " " << MixedProduct(a, b, c)
        << " " << a.SquaredLength() << " " << b.Length() << " " << Normalised(c) << " " << Cos(a, b) << " "
        << Sin(a, c) << " " << Angle(a, b) << '\n';
+
+  /// relationship
+  assert(FindRelationShip(a, c) == Vector3f::Relationship::None);
+  assert(FindRelationShip(a, b) == Vector3f::Relationship::Orthogonal);
+  assert(a != b);
+  assert(a == a);
 }
 
 void PointTest() {
@@ -45,6 +53,12 @@ void PointTest() {
   cout << DotProduct(a, c) << " " << DotProduct(a, b) << " " << CrossProduct(a, b) << " " << MixedProduct(a, b, c)
        << " " << SquaredDistance(a, b) << " " << Distance(a, c) << " " << Normalised(c) << " " << Cos(a, b) << " "
        << Sin(a, c) << " " << Angle(a, b);
+
+  /// relationship
+  assert(FindRelationShip(a, c) == Point3f::Relationship::None);
+  assert(FindRelationShip(a, a) == Point3f::Relationship::Identical);
+  assert(a != b);
+  assert(a == a);
 }
 
 int main() {

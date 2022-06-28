@@ -30,4 +30,18 @@ class Comparator<double> {
   constexpr static const double eps = 1e-4;
 };
 
+template <>
+class Comparator<float> {
+ public:
+  static bool Equal(float a, float b) {
+    return std::abs(a) < sigma
+           ? std::abs(a - b) < sigma
+           : std::abs((a - b) / std::max(std::abs(a), std::abs(b))) < eps;
+  }
+
+ private:
+  constexpr static const float sigma = 1e-2;
+  constexpr static const float eps = 1e-2;
+};
+
 #endif //GEOMERTY_GEOMETRY_COMPARATOR_H_
