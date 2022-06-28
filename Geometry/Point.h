@@ -20,7 +20,7 @@ class Point : public Vector<T, dim> {
   using Vector<T, dim>::operator=;
 
   explicit Point(const Vector<T, dim>& v);
-  /// TODO has different transformation
+  /// TODO has different affine transformation
 
   T SquaredDistance(const Point<T, dim>& point) const;
 

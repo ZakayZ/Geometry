@@ -168,7 +168,7 @@ typename Line<T, dim>::Relationship FindRelationship(const Line<T, dim>& a, cons
 
     }
   }
-  /// TODO
+  /// TODO Need matrix
 }
 
 #endif //GEOMERTY_GEOMETRY_LINE_H_
