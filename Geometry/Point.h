@@ -3,32 +3,40 @@
 //
 
 #include <array>
+#include "Void.h"
 #include "Vector.h"
 
 #ifndef GEOMERTY_GEOMETRY_POINT_H_
 #define GEOMERTY_GEOMETRY_POINT_H_
 
 template <typename T, size_t dim>
-class Point : public Vector<T, dim> {
+class Point : public Void<T, dim>, public Vector<T, dim> {
  public:
   enum class Relationship {
     Identical,
     None,
   };
 
-  using Vector<T, dim>::Vector;
-  using Vector<T, dim>::operator=;
+  /// construction
+  Point() : Void<T, dim>::type_(Entity::Point) {}
+  template <typename... Args>
+  Point(Args&& ... args);
+  Point(std::initializer_list<T> list);
+  Point(const Point<T, dim>& other) = default;
+  Point(Point<T, dim>&& other) noexcept = default;
+  explicit Point(const Vector<T, dim>& vec) : Void<T, dim>::type_(Entity::Point), Vector<T, dim>(vec) {}
+  explicit Point(Vector<T, dim>&& vec) noexcept: Void<T, dim>::type_(Entity::Point), Vector<T, dim>(std::move(vec)) {}
+  Point& operator=(const Point& other) = default;
+  Point& operator=(Point&& other) noexcept = default;
 
-  explicit Point(const Vector<T, dim>& v);
   /// TODO has different affine transformation
 
   T SquaredDistance(const Point<T, dim>& point) const;
 
   T Distance(const Point<T, dim>& point) const;
-};
 
-template <typename T, size_t dim>
-Point<T, dim>::Point(const Vector<T, dim>& v) : Point::Vector(v) {}
+  std::unique_ptr<Void<T, dim>> Intersection(const Point<T, dim>& point) const;
+};
 
 template <typename T>
 using Point1 = Point<T, 1>;
@@ -57,14 +65,29 @@ typename Point<T, dim>::Relationship FindRelationShip(const Point<T, dim>& a, co
 /////////////////////////////////////////////////DEFINITION/////////////////////////////////////////////////////////////
 
 template <typename T, size_t dim>
-T Point<T, dim>::SquaredDistance(const Point<T, dim>& point) const  {
-  T result = (point - *this).SquaredLength();
-  return result;
+template <typename... Args>
+Point<T, dim>::Point(Args&& ... args)
+    : Void<T, dim>(Entity::Point), Vector<T, dim>(std::forward<Args>(args)...) {}
+
+template <typename T, size_t dim>
+Point<T, dim>::Point(std::initializer_list<T> list) : Void<T, dim>(Entity::Point), Vector<T, dim>(list) {}
+
+template <typename T, size_t dim>
+T Point<T, dim>::SquaredDistance(const Point<T, dim>& point) const {
+  return (point - *this).SquaredLength();
 }
 
 template <typename T, size_t dim>
 T Point<T, dim>::Distance(const Point<T, dim>& point) const {
   return std::sqrt(SquaredDistance(point));
+}
+
+template <typename T, size_t dim>
+std::unique_ptr<Void<T, dim>> Point<T, dim>::Intersection(const Point<T, dim>& point) const {
+  if (point == *this) {
+    return std::unique_ptr<Point<T, dim>>(point);
+  }
+  return std::unique_ptr<Void<T, dim>>();
 }
 
 template <typename T, size_t dim>

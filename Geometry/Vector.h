@@ -432,7 +432,7 @@ typename Vector<T, dim>::Relationship FindRelationShip(const Vector<T, dim>& a, 
     return Vector<T, dim>::Relationship::Parallel;
   }
 
-  if (Comparator<T>::Equal(dot, 0)) {
+  if (Comparator<T>::IsZero(dot)) {
     return Vector<T, dim>::Relationship::Orthogonal;
   }
 

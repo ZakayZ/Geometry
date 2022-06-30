@@ -13,6 +13,10 @@ class Comparator {
   static bool Equal(const T& a, const T& b) {
     return a == b;
   }
+
+  static bool IsZero(double a) {
+    return a == 0;
+  }
  private:
 };
 
@@ -23,6 +27,10 @@ class Comparator<double> {
     return std::abs(a) < sigma
            ? std::abs(a - b) < sigma
            : std::abs((a - b) / std::max(std::abs(a), std::abs(b))) < eps;
+  }
+
+  static bool IsZero(double a) {
+    return std::abs(a) < sigma;
   }
 
  private:
@@ -39,9 +47,13 @@ class Comparator<float> {
            : std::abs((a - b) / std::max(std::abs(a), std::abs(b))) < eps;
   }
 
+  static bool IsZero(float a) {
+    return std::abs(a) < sigma;
+  }
+
  private:
-  constexpr static const float sigma = 1e-2;
-  constexpr static const float eps = 1e-2;
+  constexpr static const float sigma = 1e-3;
+  constexpr static const float eps = 1e-3;
 };
 
 #endif //GEOMERTY_GEOMETRY_COMPARATOR_H_
