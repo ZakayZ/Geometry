@@ -11,15 +11,15 @@
 #ifndef GEOMERTY_GEOMETRY_PLANE_H_
 #define GEOMERTY_GEOMETRY_PLANE_H_
 
+enum class PlaneRelationship {
+  Parallel,
+  Intersecting,
+  Identical,
+};
+
 template <typename T>
 class Plane : public Void<T, 3> {
  public:
-  enum class Relationship {
-    Parallel,
-    Intersecting,
-    Identical,
-  };
-
   /// construction
   Plane() : Void<T, 3>(Entity::Plane) {}
   Plane(const Point3<T>& origin, const Vector3<T>& abscissa, const Vector3<T>& ordinates);
@@ -33,10 +33,10 @@ class Plane : public Void<T, 3> {
   Point3<T> GetPoint(T x, T y) const { return origin_ + abscissa_ * x + ordinate_ * y; }
   Point3<T>& GetOrigin() { return origin_; }
   const Point3<T>& GetOrigin() const { return origin_; }
-  Point3<T>& GetAbscissa() { return abscissa_; }
-  const Point3<T>& GetAbscissa() const { return abscissa_; }
-  Point3<T>& GetOrdinate() { return ordinate_; }
-  const Point3<T>& GetOrdinate() const { return ordinate_; }
+  Vector3<T>& GetAbscissa() { return abscissa_; }
+  const Vector3<T>& GetAbscissa() const { return abscissa_; }
+  Vector3<T>& GetOrdinate() { return ordinate_; }
+  const Vector3<T>& GetOrdinate() const { return ordinate_; }
   Vector3<T> GetNormal() const { return CrossProduct(abscissa_, ordinate_); }
 
   /// plane calc
@@ -83,7 +83,7 @@ template <typename T>
 bool operator!=(const Plane<T>& a, const Plane<T>& b);
 
 template <typename T>
-typename Plane<T>::Relationship FindRelationship(const Plane<T>& a, const Plane<T>& b);
+PlaneRelationship FindRelationship(const Plane<T>& a, const Plane<T>& b);
 
 //////////////////////////////////////////////////////DEFINITION////////////////////////////////////////////////////////
 
@@ -146,24 +146,24 @@ T Plane<T>::Distance(const Segment3<T>& segment) const {
 
 template <typename T>
 T Plane<T>::SquaredDistance(const Line3<T>& line) const {
-  return std::pow(Distance(line), 2);
+  return Comparator<T>::IsZero(MixedProduct(line.GetDirection(), abscissa_, ordinate_)) ?
+         SquaredDistance(line.GetOrigin()) : 0;
 }
 
 template <typename T>
 T Plane<T>::Distance(const Line3<T>& line) const {
-  return Comparator<T>::IsZero(MixedProduct(line.GetDirection(), abscissa_, ordinate_)) ?
-         Distance(line.GetOrigin()) : 0;
+  return std::sqrt(SquaredDistance(line));
 }
 
 template <typename T>
 T Plane<T>::SquaredDistance(const Plane<T>& plane) const {
-  return std::pow(Distance(plane), 2);
+  return FindRelationship(CrossProduct(abscissa_, ordinate_), CrossProduct(plane.GetAbscissa(), plane.GetOrdinate()))
+             == VectorRelationship::Parallel ? SquaredDistance(plane.GetOrigin()) : 0;
 }
 
 template <typename T>
 T Plane<T>::Distance(const Plane<T>& plane) const {
-  return FindRelationship(CrossProduct(abscissa_, ordinate_), CrossProduct(plane.GetAbscissa(), plane.GetOrdinate()))
-             == Vector3<T>::Relationship::Parallel ? Distance(plane.GetOrigin()) : 0;
+  return std::sqrt(SquaredDistance(plane));
 }
 
 template <typename T>
@@ -179,12 +179,12 @@ std::unique_ptr<Void3<T>> Plane<T>::Intersection(const Segment3<T>& segment) con
   T m1 = MixedProduct(segment.GetRight() - origin_, abscissa_, ordinate_);
   T m2 = MixedProduct(segment.GetLeft() - origin_, abscissa_, ordinate_);
   if (Comparator<T>::IsZero(m1) && Comparator<T>::IsZero(m2)) {
-    return std::unique_ptr<Segment3<T>>(segment);
+    return std::make_unique<Segment3<T>>(segment);
   }
-  if (m1 * m2 < 0) {
+  if (m1 * m2 <= 0) {
     T t = MixedProduct(origin_ - segment.GetLeft(), abscissa_, ordinate_)
         / MixedProduct(segment.GetDirection(), abscissa_, ordinate_);
-    return std::unique_ptr<Point3<T>>(segment.GetPoint(t));
+    return std::make_unique<Point3<T>>(segment.GetPoint(t));
   }
   return std::make_unique<Void3<T>>();
 }
@@ -208,7 +208,7 @@ std::unique_ptr<Void3<T>> Plane<T>::Intersection(const Line3<T>& line) const {
 template <typename T>
 std::unique_ptr<Void3<T>> Plane<T>::Intersection(const Plane<T>& plane) const {
   switch (FindRelationship(*this, plane)) {
-    case Plane<T>::Relationship::Intersecting: {
+    case PlaneRelationship::Intersecting: {
       Vector3<T> dir = CrossProduct(CrossProduct(abscissa_, ordinate_), CrossProduct(plane.abscissa_, plane.ordinate_));
       Line3<T> l(plane.origin_, plane.abscissa_);
       if (Comparator<T>::IsZero(MixedProduct(plane.abscissa_, abscissa_, ordinate_))) {
@@ -218,8 +218,8 @@ std::unique_ptr<Void3<T>> Plane<T>::Intersection(const Plane<T>& plane) const {
           / MixedProduct(l.GetDirection(), abscissa_, ordinate_);
       return std::make_unique<Line3<T>>(l.GetPoint(t), dir);
     }
-    case Plane<T>::Relationship::Identical: { return std::make_unique<Plane<T>>(plane); }
-    case Plane<T>::Relationship::Parallel: { return std::make_unique<Void3<T>>(); }
+    case PlaneRelationship::Identical: { return std::make_unique<Plane<T>>(plane); }
+    case PlaneRelationship::Parallel: { return std::make_unique<Void3<T>>(); }
   }
 }
 
@@ -260,26 +260,26 @@ template <typename T>
 bool operator==(const Plane<T>& a, const Plane<T>& b) {
   return FindRelationship(CrossProduct(a.GetAbscissa(), a.GetOrdinate()),
                           CrossProduct(b.GetAbscissa(), b.GetOrdinate())) ==
-      Vector3<T>::Relationship::Parallel && a.Contains(b.GetOrigin());
+      VectorRelationship::Parallel && a.Contains(b.GetOrigin());
 }
 
 template <typename T>
 bool operator!=(const Plane<T>& a, const Plane<T>& b) {
   return !a.Contains(b.GetOrigin()) || FindRelationship(CrossProduct(a.GetAbscissa(), a.GetOrdinate()),
                                                         CrossProduct(b.GetAbscissa(), b.GetOrdinate())) !=
-      Vector3<T>::Relationship::Parallel;
+      VectorRelationship::Parallel;
 }
 
 template <typename T>
-typename Plane<T>::Relationship FindRelationship(const Plane<T>& a, const Plane<T>& b) {
+PlaneRelationship FindRelationship(const Plane<T>& a, const Plane<T>& b) {
   if (FindRelationship(CrossProduct(a.GetAbscissa(), a.GetOrdinate()),
-                       CrossProduct(b.GetAbscissa(), b.GetOrdinate())) == Vector3<T>::Relationship::Parallel) {
+                       CrossProduct(b.GetAbscissa(), b.GetOrdinate())) == VectorRelationship::Parallel) {
     if (a.Contains(b.GetOrigin())) {
-      return Plane<T>::Relationship::Identical;
+      return PlaneRelationship::Identical;
     }
-    return Plane<T>::Relationship::Parallel;
+    return PlaneRelationship::Parallel;
   }
-  return Plane<T>::Relationship::Intersecting;
+  return PlaneRelationship::Intersecting;
 }
 
 #endif //GEOMERTY_GEOMETRY_PLANE_H_

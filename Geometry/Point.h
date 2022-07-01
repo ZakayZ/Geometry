@@ -9,16 +9,16 @@
 #ifndef GEOMERTY_GEOMETRY_POINT_H_
 #define GEOMERTY_GEOMETRY_POINT_H_
 
+enum class PointRelationship {
+  Identical,
+  None,
+};
+
 template <typename T, size_t dim>
 class Point : public Void<T, dim>, public Vector<T, dim> {
  public:
-  enum class Relationship {
-    Identical,
-    None,
-  };
-
   /// construction
-  Point() : Void<T, dim>::type_(Entity::Point) {}
+  Point() : Void<T, dim>(Entity::Point) {}
   template <typename... Args>
   Point(Args&& ... args);
   Point(std::initializer_list<T> list);
@@ -60,7 +60,7 @@ using Point3f = Point3<float>;
 using Point3d = Point3<double>;
 
 template <typename T, size_t dim>
-typename Point<T, dim>::Relationship FindRelationShip(const Point<T, dim>& a, const Point<T, dim>& b);
+PointRelationship FindRelationship(const Point<T, dim>& a, const Point<T, dim>& b);
 
 /////////////////////////////////////////////////DEFINITION/////////////////////////////////////////////////////////////
 
@@ -91,8 +91,8 @@ std::unique_ptr<Void<T, dim>> Point<T, dim>::Intersection(const Point<T, dim>& p
 }
 
 template <typename T, size_t dim>
-typename Point<T, dim>::Relationship FindRelationShip(const Point<T, dim>& a, const Point<T, dim>& b) {
-  return a == b ? Point<T, dim>::Relationship::Identical : Point<T, dim>::Relationship::None;
+PointRelationship FindRelationship(const Point<T, dim>& a, const Point<T, dim>& b) {
+  return a == b ? PointRelationship::Identical : PointRelationship::None;
 }
 
 #endif //GEOMERTY_GEOMETRY_POINT_H_

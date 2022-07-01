@@ -16,9 +16,10 @@ enum class Entity {
 template <typename T, size_t dim>
 class Void {
  public:
+  Void() : type_(Entity::Void) {}
   Void(Entity type) : type_(type) {}
   [[nodiscard]] Entity GetType() const { return type_; }
-  /* virtual */ ~Void() {} /// TODO virtual
+  virtual  ~Void() = default;
  protected:
   Entity type_ = Entity::Void;
 };

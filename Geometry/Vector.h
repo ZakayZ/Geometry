@@ -10,19 +10,16 @@
 #ifndef GEOMERTY_GEOMETRY_VECTOR_H_
 #define GEOMERTY_GEOMETRY_VECTOR_H_
 
-template <typename... Args>
-static const size_t size_v = sizeof...(Args);
+enum class VectorRelationship {
+  Parallel,
+  Orthogonal,
+  Identical,
+  None,
+};
 
 template <typename T, size_t dim>
 class Vector {
  public:
-  enum class Relationship {
-    Parallel,
-    Orthogonal,
-    Identical,
-    None,
-  };
-
   /// construction
   Vector() = default;
 
@@ -35,7 +32,7 @@ class Vector {
 
   Vector(const std::initializer_list<T>& data);
 
-  template <typename... Args, typename = std::enable_if_t<size_v<Args...> == dim>>
+  template <typename... Args, typename = std::enable_if_t<sizeof...(Args) == dim>>
   Vector(Args&& ... args);
 
   Vector(const Vector& other) noexcept = default;
@@ -165,7 +162,7 @@ template <typename T, size_t dim>
 bool operator!=(const Vector<T, dim>& a, const Vector<T, dim>& b);
 
 template <typename T, size_t dim>
-typename Vector<T, dim>::Relationship FindRelationShip(const Vector<T, dim>& a, const Vector<T, dim>& b);
+VectorRelationship FindRelationship(const Vector<T, dim>& a, const Vector<T, dim>& b);
 
 /// stream
 
@@ -426,17 +423,17 @@ bool operator!=(const Vector<T, dim>& a, const Vector<T, dim>& b) {
 }
 
 template <typename T, size_t dim>
-typename Vector<T, dim>::Relationship FindRelationShip(const Vector<T, dim>& a, const Vector<T, dim>& b) {
+VectorRelationship FindRelationship(const Vector<T, dim>& a, const Vector<T, dim>& b) {
   T dot = a * b;
   if (Comparator<T>::Equal(dot * dot, a.SquaredLength() * b.SquaredLength())) {
-    return Vector<T, dim>::Relationship::Parallel;
+    return VectorRelationship::Parallel;
   }
 
   if (Comparator<T>::IsZero(dot)) {
-    return Vector<T, dim>::Relationship::Orthogonal;
+    return VectorRelationship::Orthogonal;
   }
 
-  return Vector<T, dim>::Relationship::None;
+  return VectorRelationship::None;
 }
 
 template <typename T, size_t dim>

@@ -9,16 +9,16 @@
 #ifndef GEOMERTY_GEOMETRY_SEGMENT_H_
 #define GEOMERTY_GEOMETRY_SEGMENT_H_
 
+enum class SegmentRelationship {
+  Parallel,
+  Intersecting,
+  Skew,
+  Identical,
+};
+
 template <typename T, size_t dim>
 class Segment : public Void<T, dim> {
  public:
-  enum class Relationship {
-    Parallel,
-    Intersecting,
-    Skew,
-    Identical,
-  };
-
   /// construction
   Segment() : Void<T, dim>(Entity::Segment) {};
   Segment(const Point<T, dim>& p1, const Point<T, dim>& p2);
@@ -26,9 +26,10 @@ class Segment : public Void<T, dim> {
   Segment(Segment&& other) noexcept = default;
   Segment& operator=(const Segment& other) = default;
   Segment& operator=(Segment&& other) noexcept = default;
+  ~Segment() = default;
 
   /// setters and getters
-  Point<T, dim> GetPoint(T t) const { return point_l_ * t + point_r_ * (1 - t); }
+  Point<T, dim> GetPoint(T t) const { return point_l_ * (1 - t) + point_r_ * t; }
   Point<T, dim> operator[](T t) const { return GetPoint(t); }
   Point<T, dim>& GetLeft() { return point_l_; }
   const Point<T, dim>& GetLeft() const { return point_l_; }
@@ -49,7 +50,8 @@ class Segment : public Void<T, dim> {
   std::unique_ptr<Void<T, dim>> Intersection(const Point<T, dim>& point) const;
   std::unique_ptr<Void<T, dim>> Intersection(const Segment<T, dim>& segment) const;
 
-  std::unique_ptr<Void<T, dim>> Projection(const Point3<T>& point) const;
+  Point<T, dim> Projection(const Point<T, dim>& point) const;
+  Segment<T, dim> Projection(const Segment<T, dim>& segment) const;
 
  private:
   Point<T, dim> point_l_;
@@ -86,7 +88,7 @@ template <typename T, size_t dim>
 bool operator!=(const Segment<T, dim>& a, const Segment<T, dim>& b);
 
 template <typename T, size_t dim>
-typename Segment<T, dim>::Relationship FindRelationship(const Segment<T, dim>& a, const Segment<T, dim>& b);
+SegmentRelationship FindRelationship(const Segment<T, dim>& a, const Segment<T, dim>& b);
 
 ////////////////////////////////////////////////////DEFINITION//////////////////////////////////////////////////////////
 
@@ -98,7 +100,7 @@ template <typename T, size_t dim>
 bool Segment<T, dim>::Contains(const Point<T, dim>& point) const {
   return (point - point_l_) * GetDirection() >= 0 &&
       (point - point_r_) * GetDirection() <= 0 &&
-      FindRelationship(point - point_l_, GetDirection()) == Vector<T, dim>::Relationship::Parallel;
+      FindRelationship(point - point_l_, GetDirection()) == VectorRelationship::Parallel;
 }
 
 template <typename T, size_t dim>
@@ -126,8 +128,8 @@ T Segment<T, dim>::SquaredDistance(const Segment<T, dim>& segment) const {
   T len1 = a1.SquaredLength();
   T len2 = a2.SquaredLength();
   if (!Comparator<T>::Equal(len1 * len2, dot * dot)) {
-    T t1 = (dot * a2 * r - len2 * a1 * r) / (len1 * len2 - dot * dot);
-    T t2 = -(dot * a1 * r - len1 * a2 * r) / (len1 * len2 - dot * dot);
+    T t1 = -(dot * a2 * r - len2 * a1 * r) / (len1 * len2 - dot * dot);
+    T t2 = (dot * a1 * r - len1 * a2 * r) / (len1 * len2 - dot * dot);
     if (t1 >= 0 && t1 <= 1 && t2 >= 0 && t2 <= 1) {
       return GetPoint(t1).SquaredDistance(segment.GetPoint(t2));
     }
@@ -144,9 +146,9 @@ T Segment<T, dim>::Distance(const Segment<T, dim>& segment) const {
 template <typename T, size_t dim>
 std::unique_ptr<Void<T, dim>> Segment<T, dim>::Intersection(const Point<T, dim>& point) const {
   if (Contains(point)) {
-    return std::unique_ptr<Point<T, dim>>(point);
+    return std::make_unique<Point<T, dim>>(point);
   }
-  return std::unique_ptr<Void<T, dim>>();
+  return std::make_unique<Void<T, dim>>();
 }
 
 template <typename T, size_t dim>
@@ -160,45 +162,49 @@ std::unique_ptr<Void<T, dim>> Segment<T, dim>::Intersection(const Segment<T, dim
   if (Comparator<T>::Equal(len1 * len2, dot * dot)) { /// REFACTOR:))))))
     if (Contains(segment.GetLeft())) {
       if (Contains(segment.GetRight())) {
-        return std::unique_ptr<Segment<T, dim>>(segment);
+        return std::make_unique<Segment<T, dim>>(segment);
       }
       if (segment.Contains(GetLeft())) {
-        return std::unique_ptr<Segment<T, dim>>(segment.GetLeft(), GetLeft());
+        return std::make_unique<Segment<T, dim>>(segment.GetLeft(), GetLeft());
       }
       if (segment.Contains(GetRight())) {
-        return std::unique_ptr<Segment<T, dim>>(segment.GetLeft(), GetRight());
+        return std::make_unique<Segment<T, dim>>(segment.GetLeft(), GetRight());
       }
     }
     if (Contains(segment.GetRight())) {
       if (segment.Contains(GetLeft())) {
-        return std::unique_ptr<Segment<T, dim>>(segment.GetRight(), GetLeft());
+        return std::make_unique<Segment<T, dim>>(segment.GetRight(), GetLeft());
       }
       if (segment.Contains(GetRight())) {
-        return std::unique_ptr<Segment<T, dim>>(segment.GetRight(), GetRight());
+        return std::make_unique<Segment<T, dim>>(segment.GetRight(), GetRight());
       }
     }
     if (segment.Contains(GetLeft()) && segment.Contains(GetRight())) {
-      return std::unique_ptr<Segment<T, dim>>(GetLeft(), GetRight());
+      return std::make_unique<Segment<T, dim>>(GetLeft(), GetRight());
     }
   } else {
-    T t1 = (dot * a2 * r - len2 * a1 * r) / (len1 * len2 - dot * dot);
-    T t2 = -(dot * a1 * r - len1 * a2 * r) / (len1 * len2 - dot * dot);
+    T t1 = -(dot * a2 * r - len2 * a1 * r) / (len1 * len2 - dot * dot);
+    T t2 = (dot * a1 * r - len1 * a2 * r) / (len1 * len2 - dot * dot);
     if (t1 >= 0 && t1 <= 1 && t2 >= 0 && t2 <= 1
         && Comparator<T>::IsZero(GetPoint(t1).Distance(segment.GetPoint(t2)))) {
-      return std::unique_ptr<Point<T, dim>>(GetPoint(t1));
+      return std::make_unique<Point<T, dim>>(GetPoint(t1));
     }
   }
-  return std::unique_ptr<Void<T, dim>>();
+  return std::make_unique<Void<T, dim>>();
 }
 
 template <typename T, size_t dim>
-std::unique_ptr<Void<T, dim>> Segment<T, dim>::Projection(const Point3<T>& point) const {
+Point<T, dim> Segment<T, dim>::Projection(const Point<T, dim>& point) const {
   auto dir = GetDirection();
   T t = DotProduct(point - point_l_, dir) / dir.SquaredLength();
-  if (t >= 0 && t <= 1) {
-    return std::unique_ptr<Point<T, dim>>(GetPoint(t));
-  }
-  return std::unique_ptr<Void<T, dim>>();
+  if (t <= 0) { return point_l_; }
+  if (t >= 1) { return point_r_; }
+  return GetPoint(t);
+}
+
+template <typename T, size_t dim>
+Segment<T, dim> Segment<T, dim>::Projection(const Segment<T, dim>& segment) const {
+  return {Projection(segment.point_l_), Projection(segment.point_r_)};
 }
 
 template <typename T, size_t dim>
@@ -213,22 +219,22 @@ bool operator!=(const Segment<T, dim>& a, const Segment<T, dim>& b) {
 }
 
 template <typename T, size_t dim>
-typename Segment<T, dim>::Relationship FindRelationship(const Segment<T, dim>& a, const Segment<T, dim>& b) {
-  if (FindRelationship(a.GetDirection(), b.GetDirection()) == Vector<T, dim>::Relationship::Parallel) {
-    if (FindRelationship(a.GetDirection(), b.GetOrigin() - a.GetOrigin()) == Vector<T, dim>::Relationship::Parallel) {
+SegmentRelationship FindRelationship(const Segment<T, dim>& a, const Segment<T, dim>& b) {
+  if (FindRelationship(a.GetDirection(), b.GetDirection()) == VectorRelationship::Parallel) {
+    if (FindRelationship(a.GetDirection(), b.GetLeft() - a.GetLeft()) == VectorRelationship::Parallel) {
       if (a == b) {
-        return Segment<T, dim>::Relationship::Identical;
+        return SegmentRelationship::Identical;
       }
       if (a.Contains(b.GetLeft()) || a.Contains(b.GetRight()) || b.Contains(a.GetLeft()) || b.Contains(a.GetRight())) {
-        return Segment<T, dim>::Relationship::Intersecting;
+        return SegmentRelationship::Intersecting;
       }
     }
-    return Segment<T, dim>::Relationship::Parallel;;
+    return SegmentRelationship::Parallel;;
   }
   if (Comparator<T>::IsZero(a.Distance(b))) {
-    return Segment<T, dim>::Relationship::Intersecting;
+    return SegmentRelationship::Intersecting;
   }
-  return Segment<T, dim>::Relationship::Skew;
+  return SegmentRelationship::Skew;
 }
 
 #endif //GEOMERTY_GEOMETRY_SEGMENT_H_

@@ -10,16 +10,16 @@
 #ifndef GEOMERTY_GEOMETRY_LINE_H_
 #define GEOMERTY_GEOMETRY_LINE_H_
 
+enum class LineRelationship {
+  Parallel,
+  Intersecting,
+  Skew,
+  Identical,
+};
+
 template <typename T, size_t dim>
 class Line : public Void<T, dim> {
  public:
-  enum class Relationship {
-    Parallel,
-    Intersecting,
-    Skew,
-    Identical,
-  };
-
   /// construction
   Line() : Void<T, dim>(Entity::Line) {};
   Line(const Point<T, dim>& p1, const Point<T, dim>& p2);
@@ -51,9 +51,9 @@ class Line : public Void<T, dim> {
   std::unique_ptr<Void<T, dim>> Intersection(const Segment<T, dim>& segment) const;
   std::unique_ptr<Void<T, dim>> Intersection(const Line<T, dim>& line) const;
 
-  template <typename = std::enable_if_t<dim == 2>>
+  template <bool Temp = dim == 2, typename = std::enable_if_t<Temp>>
   Point2<T> Projection(const Point2<T>& point, const Vector2<T>& a) const;
-  template <typename = std::enable_if_t<dim == 2>>
+  template <bool Temp = dim == 2, typename = std::enable_if_t<Temp>>
   Segment2<T> Projection(const Segment2<T>& segment, const Vector2<T>& a) const;
 
   Point<T, dim> Projection(const Point<T, dim>& point) const;
@@ -87,7 +87,7 @@ template <typename T, size_t dim>
 bool operator!=(const Line<T, dim>& a, const Line<T, dim>& b);
 
 template <typename T, size_t dim>
-typename Line<T, dim>::Relationship FindRelationship(const Line<T, dim>& a, const Line<T, dim>& b);
+LineRelationship FindRelationship(const Line<T, dim>& a, const Line<T, dim>& b);
 
 /////////////////////////////////////////////////////DEFINITION/////////////////////////////////////////////////////////
 
@@ -106,20 +106,18 @@ void Line<T, dim>::Normalise() {
 
 template <typename T, size_t dim>
 bool Line<T, dim>::Contains(const Point<T, dim>& point) const {
-  return FindRelationship(point - origin_, direction_) == Vector<T, dim>::Relationship::Parallel;
+  return FindRelationship(point - origin_, direction_) == VectorRelationship::Parallel;
 }
 
 template <typename T, size_t dim>
 T Line<T, dim>::SquaredDistance(const Point<T, dim>& point) const {
   T t = (point - origin_) * direction_ / direction_.SquaredLength();
-  T squared_distance = point.SquaredDistance(GetPoint(t));
-  return squared_distance;
+  return point.SquaredDistance(GetPoint(t));
 }
 
 template <typename T, size_t dim>
 T Line<T, dim>::Distance(const Point<T, dim>& point) const {
-  T distance = std::sqrt(SquaredDistance(point));
-  return distance;
+  return std::sqrt(SquaredDistance(point));
 }
 
 template <typename T, size_t dim>
@@ -146,11 +144,11 @@ T Line<T, dim>::Distance(const Segment<T, dim>& segment) const {
 template <typename T, size_t dim>
 T Line<T, dim>::SquaredDistance(const Line<T, dim>& line) const {
   if constexpr(dim == 3) {
-    T cross = CrossProduct(line.direction_, direction_);
-    if (cross == 0) {
+    T cross = CrossProduct(line.direction_, direction_).SquaredLength();
+    if (Comparator<T>::IsZero(cross)) {
       return CrossProduct(line.origin_ - origin_, direction_).SquaredLength() / direction_.SquaredLength();
     }
-    return std::pow(MixedProduct(line.origin_ - origin_, line.direction_, direction_) / cross, 2);
+    return std::pow(MixedProduct(line.origin_ - origin_, line.direction_, direction_), 2) / cross;
   } else {
     T dot = direction_ * line.direction_;
     Vector<T, dim> delta = origin_ - line.origin_;
@@ -162,18 +160,7 @@ T Line<T, dim>::SquaredDistance(const Line<T, dim>& line) const {
 
 template <typename T, size_t dim>
 T Line<T, dim>::Distance(const Line<T, dim>& line) const {
-  if constexpr(dim == 3) {
-    T cross = CrossProduct(line.direction_, direction_);
-    if (cross == 0) {
-      T distance =
-          std::sqrt(CrossProduct(line.origin_ - origin_, direction_).SquaredLength() / direction_.SquaredLength());
-      return distance;
-    }
-    return MixedProduct(line.origin_ - origin_, line.direction_, direction_) / cross;
-  } else {
-    T distance = std::sqrt(SquaredDistance(line));
-    return distance;
-  }
+  return std::sqrt(SquaredDistance(line));
 }
 
 template <typename T, size_t dim>
@@ -181,7 +168,7 @@ std::unique_ptr<Void<T, dim>> Line<T, dim>::Intersection(const Point<T, dim>& po
   if (Contains(point)) {
     return std::make_unique<Point<T, dim>>(point);
   }
-  return std::unique_ptr<Void<T, dim>>();
+  return std::make_unique<Void<T, dim>>();
 }
 
 template <typename T, size_t dim>
@@ -192,37 +179,37 @@ std::unique_ptr<Void<T, dim>> Line<T, dim>::Intersection(const Segment<T, dim>& 
   T len1 = direction_.SquaredLength();
   T len2 = segment_dir.SquaredLength();
   if (!Comparator<T>::Equal(len1 * len2, dot * dot)) {
-    T t = -(dot * direction_ * delta_r - len1 * segment_dir * delta_r) / (len1 * len2 - dot * dot);
+    T t = (dot * direction_ * delta_r - len1 * segment_dir * delta_r) / (len1 * len2 - dot * dot);
     if (t >= 0 && t <= 1) {
-      return std::unique_ptr<Point<T, dim>>(segment.GetPoint(t));
+      return std::make_unique<Point<T, dim>>(segment.GetPoint(t));
     }
   }
   if (Contains(segment.GetLeft()) && Contains(segment.GetRight())) {
-    return std::unique_ptr<Segment<T, dim>>(segment);
+    return std::make_unique<Segment<T, dim>>(segment);
   }
-  return std::unique_ptr<Point<T, dim>>();
+  return std::make_unique<Void<T, dim>>();
 }
 
 template <typename T, size_t dim>
 std::unique_ptr<Void<T, dim>> Line<T, dim>::Intersection(const Line<T, dim>& line) const {
-  if (FindRelationship(direction_, line.direction_) == Vector<T, dim>::Relationship::Parallel) {
+  if (FindRelationship(direction_, line.direction_) == VectorRelationship::Parallel) {
     if (Contains(line.origin_)) {
-      return std::unique_ptr<Line<T, dim>>(line);
+      return std::make_unique<Line<T, dim>>(line);
     }
-    return std::unique_ptr<Void<T, dim>>();
+    return std::make_unique<Void<T, dim>>();
   }
   T dot = direction_ * line.direction_;
   Vector<T, dim> delta = origin_ - line.origin_;
   T t = (dot * delta * direction_ - delta * line.direction_ * direction_.SquaredLength()) /
       (direction_.SquaredLength() * line.direction_.SquaredLength() - dot * dot);
   if (Comparator<T>::IsZero(line.Distance(GetPoint(t)))) {
-    return std::unique_ptr<Point<T, dim>>(GetPoint(t));
+    return std::make_unique<Point<T, dim>>(GetPoint(t));
   }
-  return std::unique_ptr<Void<T, dim>>();
+  return std::make_unique<Void<T, dim>>();
 }
 
 template <typename T, size_t dim>
-template <typename>
+template <bool, typename>
 Point2<T> Line<T, dim>::Projection(const Point2<T>& point, const Vector2<T>& a) const {
   Vector2<T> delta_r = point - origin_;
   T t = (delta_r[0] * a[1] - delta_r[1] * a[0]) / (direction_[0] * a[1] - direction_[1] * a[0]);
@@ -230,7 +217,7 @@ Point2<T> Line<T, dim>::Projection(const Point2<T>& point, const Vector2<T>& a) 
 }
 
 template <typename T, size_t dim>
-template <typename>
+template <bool, typename>
 Segment2<T> Line<T, dim>::Projection(const Segment2<T>& segment, const Vector2<T>& a) const {
   return {Projection(segment.GetLeft(), a), Projection(segment.GetRight(), a)};
 }
@@ -249,7 +236,7 @@ Segment<T, dim> Line<T, dim>::Projection(const Segment<T, dim>& segment) const {
 template <typename T, size_t dim>
 bool operator==(const Line<T, dim>& a, const Line<T, dim>& b) {
   return b.Contains(a.GetOrigin())
-      && FindRelationship(a.GetDirection(), b.GetDirection()) == Vector<T, dim>::Relationship::Paralel;
+      && FindRelationship(a.GetDirection(), b.GetDirection()) == VectorRelationship::Parallel;
 }
 
 template <typename T, size_t dim>
@@ -258,17 +245,17 @@ bool operator!=(const Line<T, dim>& a, const Line<T, dim>& b) {
 }
 
 template <typename T, size_t dim>
-typename Line<T, dim>::Relationship FindRelationship(const Line<T, dim>& a, const Line<T, dim>& b) {
-  if (FindRelationship(a.GetDirection(), b.GetDirection()) == Vector<T, dim>::Relationship::Parallel) {
-    return FindRelationship(a.GetDirection(), b.GetOrigin() - a.GetOrigin()) == Vector<T, dim>::Relationship::Parallel
-           ? Line<T, dim>::Relationship::Identical
-           : Line<T, dim>::Relationship::Parallel;
+LineRelationship FindRelationship(const Line<T, dim>& a, const Line<T, dim>& b) {
+  if (FindRelationship(a.GetDirection(), b.GetDirection()) == VectorRelationship::Parallel) {
+    return FindRelationship(a.GetDirection(), b.GetOrigin() - a.GetOrigin()) == VectorRelationship::Parallel
+           ? LineRelationship::Identical
+           : LineRelationship::Parallel;
   }
 
   if (Comparator<T>::IsZero(a.Distance(b))) {
-    return Line<T, dim>::Relationship::Intersecting;
+    return LineRelationship::Intersecting;
   }
-  return Line<T, dim>::Relationship::Skew;
+  return LineRelationship::Skew;
 }
 
 #endif //GEOMERTY_GEOMETRY_LINE_H_
