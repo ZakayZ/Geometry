@@ -8,9 +8,9 @@
 #ifndef GEOMERTY_GEOMETRY_DATA_H_
 #define GEOMERTY_GEOMETRY_DATA_H_
 
-template <typename T, size_t dim>
+template <typename T, size_t Dimension>
 union Data {
-  std::array<T, dim> cords;
+  std::array<T, Dimension> cords;
 };
 
 template <typename T>
@@ -41,17 +41,17 @@ union Data<T, 3> {
   };
 };
 
-template <typename T, size_t dim>
-bool operator==(const Data<T, dim>& a, const Data<T, dim>& b) {
+template <typename T, size_t Dimension>
+bool operator==(const Data<T, Dimension>& a, const Data<T, Dimension>& b) {
   bool ok = true;
-  for(size_t i = 0; i < dim; ++i){
+  for(size_t i = 0; i < Dimension; ++i){
     ok = ok && Comparator<T>::Equal(a.cords[i], b.cords[i]);
   }
   return ok;
 }
 
-template <typename T, size_t dim>
-bool operator!=(const Data<T, dim>& a, const Data<T, dim>& b) {
+template <typename T, size_t Dimension>
+bool operator!=(const Data<T, Dimension>& a, const Data<T, Dimension>& b) {
   return !(a == b);
 }
 

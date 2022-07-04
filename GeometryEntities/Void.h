@@ -2,18 +2,12 @@
 // Created by Artem Novikov on 28.06.2022.
 //
 
+#include "Entities.h"
+
 #ifndef GEOMERTY_GEOMETRY_VOID_H_
 #define GEOMERTY_GEOMETRY_VOID_H_
 
-enum class Entity {
-  Void,
-  Point,
-  Segment,
-  Line,
-  Plane,
-};
-
-template <typename T, size_t dim>
+template <typename T, size_t Dimension>
 class Void {
  public:
   Void() : type_(Entity::Void) {}

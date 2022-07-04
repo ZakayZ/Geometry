@@ -1,10 +1,14 @@
 #include <iostream>
-#include "Geometry/Vector.h"
-#include "Geometry/Matrix.h"
-#include "Geometry/Point.h"
-#include "Geometry/Line.h"
-#include "Geometry/Segment.h"
-#include "Geometry/Plane.h"
+#include <set>
+#include <vector>
+#include "GeometryEntities/Vector.h"
+#include "GeometryEntities/Matrix.h"
+#include "GeometryEntities/Point.h"
+#include "GeometryEntities/Line.h"
+#include "GeometryEntities/Segment.h"
+#include "GeometryEntities/Plane.h"
+
+#include "Splines/BezierCurve.h"
 
 using namespace std;
 
@@ -15,12 +19,12 @@ void VectorTest() {
   p.y = 2;
   p.z = 3;
 
-
   /// constructors
   Vector<float, 3> a(1.f, 0.f, 0.f);
   Vector<float, 3> b({0.f, 1.f, 0.f});
-  Vector<float, 3> c(vector<float>({1.f, 1.f, 1.f}));
+  Vector<float, 3> c(std::vector<float>({1.f, 1.f, 1.f}));
   Vector<float, 3> d(p);
+  Vector<float, 3> e(std::set<float>({1.f, 2.f, 3.f}));
   cout << a << " " << b << " " << c << " " << d << '\n';
   d += d;
   d *= 5;
@@ -307,7 +311,7 @@ void PlaneTest() {
   assert(a == a);
 }
 
-int main() {
+void GeometryTest() {
   cout << "Vector Test \n";
   VectorTest();
 
@@ -325,4 +329,13 @@ int main() {
 
   cout << "\nPlane Test \n";
   PlaneTest();
+}
+
+void BezierTest() {
+
+}
+
+int main() {
+  cout << "\nGeometry Test \n";
+  GeometryTest();
 }

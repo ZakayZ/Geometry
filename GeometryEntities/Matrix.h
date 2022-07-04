@@ -16,6 +16,9 @@ class Matrix {
   Matrix(const Matrix& other) = default;
   Matrix(Matrix&& other) noexcept = default;
   Matrix(std::initializer_list<Vector<T, Rows>> list);
+  template <typename U, template <typename, typename...> class Container, typename... Args,
+      typename = std::enable_if_t<is_iterable_v<Container<U, Args...>>>>
+  explicit Matrix(const Container<Vector<U, Rows>, Args...>& data);
   template <typename... Args, bool Temp = sizeof...(Args) == Columns, typename = std::enable_if_t<Temp>>
   Matrix(Args&& ... args);
   ~Matrix() = default;
@@ -88,27 +91,33 @@ Matrix<T, Rows, Columns> operator-(const Matrix<T, Rows, Columns>& a, const Matr
 template <typename T, size_t Rows, size_t Columns, size_t OtherColumns>
 Matrix<T, Rows, OtherColumns> operator*(const Matrix<T, Rows, Columns>& a, const Matrix<T, Columns, OtherColumns>& b);
 
-template <typename T, size_t Rows, size_t Columns, typename U, typename = std::enable_if_t<std::is_constructible_v<T,
-                                                                                                                   U>>>
+template <typename T, size_t Rows, size_t Columns, typename U,
+    typename = std::enable_if_t<std::is_constructible_v<T, U>>>
 Matrix<T, Rows, Columns> operator*(const Matrix<T, Rows, Columns>& matrix, const U& scalar);
 
-template <typename T, size_t Rows, size_t Columns, typename U, typename = std::enable_if_t<std::is_constructible_v<T,
-                                                                                                                   U>>>
+template <typename T, size_t Rows, size_t Columns, typename U,
+    typename = std::enable_if_t<std::is_constructible_v<T, U>>>
 Matrix<T, Rows, Columns> operator*(const U& scalar, const Matrix<T, Rows, Columns>& matrix);
 
 template <typename T, size_t Columns, typename U, typename = std::enable_if_t<std::is_constructible_v<T, U>>>
 Matrix<T, Columns> operator+(const Matrix<T, Columns>& matrix, const U& scalar);
 
-template <typename T, size_t Rows, size_t Columns, typename U, typename = std::enable_if_t<std::is_constructible_v<T,
-                                                                                                                   U>>>
+template <typename T, size_t Rows, size_t Columns, typename U,
+    typename = std::enable_if_t<std::is_constructible_v<T, U>>>
 Matrix<T, Rows, Columns> operator+(const U& scalar, const Matrix<T, Rows, Columns>& matrix);
 
 template <typename T, size_t Columns, typename U, typename = std::enable_if_t<std::is_constructible_v<T, U>>>
 Matrix<T, Columns> operator-(const Matrix<T, Columns>& matrix, const U& scalar);
 
-template <typename T, size_t Rows, size_t Columns, typename U, typename = std::enable_if_t<std::is_constructible_v<T,
-                                                                                                                   U>>>
+template <typename T, size_t Rows, size_t Columns, typename U,
+    typename = std::enable_if_t<std::is_constructible_v<T, U>>>
 Matrix<T, Rows, Columns> operator-(const U& scalar, const Matrix<T, Rows, Columns>& matrix);
+
+template <typename T, size_t Rows, size_t Columns>
+Vector<T, Rows> operator*(const Matrix<T, Rows, Columns>& matrix, const Vector<T, Columns>& vector);
+
+template <typename T, size_t Rows, size_t Columns>
+Vector<T, Columns> operator*(const Vector<T, Rows>& vector, const Matrix<T, Rows, Columns>& matrix);
 
 /// relationship
 
@@ -133,19 +142,29 @@ Matrix<T, Rows, Columns>::Matrix() {
   if constexpr(Columns == Rows) {
     for (size_t i = 0; i < Columns; ++i) {
       for (size_t j = 0; j < Columns; ++j) {
-        data_[i][j] = 0;
+        operator[](i)[j] = 0;
       }
-      data_[i][i] = 1;
+      operator[](i)[i] = 1;
     }
   }
 }
 
 template <typename T, size_t Rows, size_t Columns>
 Matrix<T, Rows, Columns>::Matrix(std::initializer_list<Vector<T, Rows>> list) {
+  assert(list.size() <= Columns);
   size_t index = 0;
   for (auto& el : list) {
-    data_[index] = el;
-    ++index;
+    operator[](index++) = el;
+  }
+}
+
+template <typename T, size_t Rows, size_t Columns>
+template <typename U, template <typename, typename...> class Container, typename... Args, typename>
+Matrix<T, Rows, Columns>::Matrix(const Container<Vector<U, Rows>, Args...>& data) {
+  assert(data.size() <= Columns);
+  size_t index = 0;
+  for (auto& el : data) {
+    operator[](index++) = el;
   }
 }
 
@@ -158,19 +177,19 @@ Matrix<T, Rows, Columns>::Matrix(Args&& ... args) {
 template <typename T, size_t Rows, size_t Columns>
 void Matrix<T, Rows, Columns>::Triangulate() {
   for (size_t row = 0; row < std::min(Rows, Columns); ++row) {
-    if (Comparator<T>::IsZero(data_[row][row])) {
-      data_[row][row] = 0;
+    if (Comparator<T>::IsZero(operator[](row)[row])) {
+      operator[](row)[row] = 0;
       for (size_t non_zero_row = row + 1; non_zero_row < Rows; ++non_zero_row) {
-        if (Comparator<T>::IsZero(data_[row][non_zero_row])) {
+        if (Comparator<T>::IsZero(operator[](row)[non_zero_row])) {
           SwapRows(row, non_zero_row);
           break;
         }
       }
     }
-    if (!Comparator<T>::IsZero(data_[row][row])) {
+    if (!Comparator<T>::IsZero(operator[](row)[row])) {
       for (size_t other_row = row + 1; other_row < Rows; ++other_row) {
-        AddRow(other_row, row, -data_[row][other_row] / data_[row][row]);
-        data_[row][other_row] = 0;
+        AddRow(other_row, row, -operator[](row)[other_row] / operator[](row)[row]);
+        operator[](row)[other_row] = 0;
       }
     }
   }
@@ -180,10 +199,10 @@ template <typename T, size_t Rows, size_t Columns>
 void Matrix<T, Rows, Columns>::Diagonalize() {
   Triangulate();
   for (size_t row = 0; row < Rows; ++row) {
-    if (!Comparator<T>::IsZero(data_[row][row])) {
+    if (!Comparator<T>::IsZero(operator[](row)[row])) {
       for (size_t other_row = 0; other_row < row; ++other_row) {
-        AddRow(other_row, row, -data_[row][other_row] / data_[row][row]);
-        data_[row][other_row] = 0;
+        AddRow(other_row, row, -operator[](row)[other_row] / operator[](row)[row]);
+        operator[](row)[other_row] = 0;
       }
     }
   }
@@ -194,7 +213,7 @@ template <bool, typename>
 void Matrix<T, Rows, Columns>::Transpose() {
   for (size_t i = 0; i < Columns; ++i) {
     for (size_t j = 0; j < i; ++j) {
-      std::swap(data_[i][j], data_[j][i]);
+      std::swap(operator[](i)[j], operator[](j)[i]);
     }
   }
 }
@@ -203,9 +222,8 @@ template <typename T, size_t Rows, size_t Columns>
 size_t Matrix<T, Rows, Columns>::Rank() const {
   auto tri = Triangulated(*this);
   size_t non_trivial_rows = 0;
-  while (!Comparator<T>::IsZero(tri[non_trivial_rows][non_trivial_rows])
-      && non_trivial_rows < std::min(Rows, Columns)) {
-    ++non_trivial_rows;
+  for (size_t i = 0; i < Rows; ++i) {
+    non_trivial_rows += !Comparator<T>::IsZero(tri[i][i]);
   }
   return non_trivial_rows;
 }
@@ -226,7 +244,7 @@ template <bool, typename>
 T Matrix<T, Rows, Columns>::Trace() const {
   T sum = 0;
   for (size_t i = 0; i < Columns; ++i) {
-    sum += data_[i][i];
+    sum += operator[](i)[i];
   }
   return sum;
 }
@@ -236,26 +254,26 @@ template <bool, typename>
 void Matrix<T, Rows, Columns>::Invert() {
   Matrix<T, Columns> identity_matrix;
   for (size_t row = 0; row < std::min(Rows, Columns); ++row) {
-    if (Comparator<T>::IsZero(data_[row][row])) {
-      data_[row][row] = 0;
+    if (Comparator<T>::IsZero(operator[](row)[row])) {
+      operator[](row)[row] = 0;
       for (size_t non_zero_row = row + 1; non_zero_row < Rows; ++non_zero_row) {
-        if (Comparator<T>::IsZero(data_[row][non_zero_row])) {
+        if (Comparator<T>::IsZero(operator[](row)[non_zero_row])) {
           SwapRows(row, non_zero_row);
           identity_matrix.SwapRows(row, non_zero_row);
           break;
         }
       }
     }
-    if (!Comparator<T>::IsZero(data_[row][row])) {
+    if (!Comparator<T>::IsZero(operator[](row)[row])) {
       for (size_t other_row = 0; other_row < Rows; ++other_row) {
         if (other_row != row) {
-          T scale = -data_[row][other_row] / data_[row][row];
+          T scale = -operator[](row)[other_row] / operator[](row)[row];
           identity_matrix.AddRow(other_row, row, scale);
           AddRow(other_row, row, scale);
-          data_[row][other_row] = 0;
+          operator[](row)[other_row] = 0;
         }
       }
-      T scale = 1 / data_[row][row];
+      T scale = 1 / operator[](row)[row];
       identity_matrix.ScaleRow(row, scale);
       ScaleRow(row, scale);
     }
@@ -267,7 +285,7 @@ template <typename T, size_t Rows, size_t Columns>
 Matrix<T, Rows, Columns>& Matrix<T, Rows, Columns>::operator+=(const Matrix& other) {
   for (size_t i = 0; i < Columns; ++i) {
     for (size_t j = 0; j < Rows; ++j) {
-      data_[i][j] += other[i][j];
+      operator[](i)[j] += other[i][j];
     }
   }
   return *this;
@@ -277,7 +295,7 @@ template <typename T, size_t Rows, size_t Columns>
 Matrix<T, Rows, Columns>& Matrix<T, Rows, Columns>::operator-=(const Matrix& other) {
   for (size_t i = 0; i < Columns; ++i) {
     for (size_t j = 0; j < Rows; ++j) {
-      data_[i][j] -= other[i][j];
+      operator[](i)[j] -= other[i][j];
     }
   }
   return *this;
@@ -290,9 +308,9 @@ Matrix<T, Rows, Columns>& Matrix<T, Rows, Columns>::operator*=(const Matrix<T, C
   auto prev = std::move(*this);
   for (size_t i = 0; i < N; ++i) {
     for (size_t j = 0; j < N; ++j) {
-      data_[i][j] = 0;
+      operator[](i)[j] = 0;
       for (size_t k = 0; k < N; ++k) {
-        data_[i][j] += prev[k][i] * other[j][k];
+        operator[](i)[j] += prev[k][i] * other[j][k];
       }
     }
   }
@@ -303,7 +321,7 @@ template <typename T, size_t Rows, size_t Columns>
 Matrix<T, Rows, Columns>& Matrix<T, Rows, Columns>::operator*=(const T& scalar) {
   for (size_t i = 0; i < Columns; ++i) {
     for (size_t j = 0; j < Rows; ++j) {
-      data_[i][j] *= scalar;
+      operator[](i)[j] *= scalar;
     }
   }
   return *this;
@@ -313,7 +331,7 @@ template <typename T, size_t Rows, size_t Columns>
 template <bool, typename>
 Matrix<T, Rows, Columns>& Matrix<T, Rows, Columns>::operator+=(const T& scalar) {
   for (size_t i = 0; i < Columns; ++i) {
-    data_[i][i] += scalar;
+    operator[](i)[i] += scalar;
   }
   return *this;
 }
@@ -322,7 +340,7 @@ template <typename T, size_t Rows, size_t Columns>
 template <bool, typename>
 Matrix<T, Rows, Columns>& Matrix<T, Rows, Columns>::operator-=(const T& scalar) {
   for (size_t i = 0; i < Columns; ++i) {
-    data_[i][i] -= scalar;
+    operator[](i)[i] -= scalar;
   }
   return *this;
 }
@@ -424,15 +442,35 @@ Matrix<T, Rows, Columns> operator-(const U& scalar, const Matrix<T, Rows, Column
 }
 
 template <typename T, size_t Rows, size_t Columns>
+Vector<T, Rows> operator*(const Matrix<T, Rows, Columns>& matrix, const Vector<T, Columns>& vector) {
+  Vector<T, Rows> result;
+  for (size_t i = 0; i < Columns; ++i) {
+    for (size_t j = 0; j < Rows; ++j) {
+      result[j] += vector[i] * matrix[i][j];
+    }
+  }
+  return result;
+}
+
+template <typename T, size_t Rows, size_t Columns>
+Vector<T, Columns> operator*(const Vector<T, Rows>& vector, const Matrix<T, Rows, Columns>& matrix) {
+  Vector<T, Columns> result;
+  for (size_t i = 0; i < Columns; ++i) {
+    result[i] = vector * matrix[i];
+  }
+  return result;
+}
+
+template <typename T, size_t Rows, size_t Columns>
 template <typename U>
 void Matrix<T, Rows, Columns>::PushVector(U&& value) {
-  data_[Rows - 1] = value;
+  operator[](Rows - 1) = value;
 }
 
 template <typename T, size_t Rows, size_t Columns>
 template <typename U, typename... Args>
 void Matrix<T, Rows, Columns>::PushVector(U&& value, Args&& ... args) {
-  data_[Rows - sizeof...(Args) - 1] = value;
+  operator[](Rows - sizeof...(Args) - 1) = value;
   PushVector(std::forward<Args>(args)...);
 }
 
@@ -440,7 +478,7 @@ template <typename T, size_t Rows, size_t Columns>
 bool Matrix<T, Rows, Columns>::IsZeroRow(size_t row) const {
   bool ans = true;
   for (size_t j = 0; j < Columns; ++j) {
-    ans &= Comparator<T>::IsZero(data_[j][row]);
+    ans &= Comparator<T>::IsZero(operator[](j)[row]);
   }
   return ans;
 }
@@ -448,21 +486,21 @@ bool Matrix<T, Rows, Columns>::IsZeroRow(size_t row) const {
 template <typename T, size_t Rows, size_t Columns>
 void Matrix<T, Rows, Columns>::ScaleRow(size_t row, T scale) {
   for (size_t j = 0; j < Columns; ++j) {
-    data_[j][row] *= scale;
+    operator[](j)[row] *= scale;
   }
 }
 
 template <typename T, size_t Rows, size_t Columns>
 void Matrix<T, Rows, Columns>::AddRow(size_t row, size_t add, T scale) {
   for (size_t j = 0; j < Columns; ++j) {
-    data_[j][row] += data_[j][add] * scale;
+    operator[](j)[row] += operator[](j)[add] * scale;
   }
 }
 
 template <typename T, size_t Rows, size_t Columns>
 void Matrix<T, Rows, Columns>::SwapRows(size_t row1, size_t row2) {
   for (size_t j = 0; j < Columns; ++j) {
-    std::swap(data_[j][row1], data_[j][row2]);
+    std::swap(operator[](j)[row1], operator[](j)[row2]);
   }
 }
 
