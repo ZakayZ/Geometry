@@ -25,7 +25,7 @@ class BoundaryBox {
   const Point<T, Dimension>& GetRight() const { return point_r_; }
 
   /// calc
-  bool Inside(const Point<T, Dimension>& point) const;
+  bool Contains(const Point<T, Dimension>& point) const;
   bool Inside(const BoundaryBox& box) const;
   bool Intersects(const BoundaryBox& box) const;
  private:
@@ -54,7 +54,7 @@ BoundaryBox<T, Dimension>::BoundaryBox(const Point<T, Dimension>& point_l, const
     : point_l_(point_l), point_r_(point_r) {}
 
 template <typename T, size_t Dimension>
-bool BoundaryBox<T, Dimension>::Inside(const Point<T, Dimension>& point) const {
+bool BoundaryBox<T, Dimension>::Contains(const Point<T, Dimension>& point) const {
   bool is_intersecting = true;
   for (size_t i = 0; i < Dimension; ++i) {
     is_intersecting &= GetLeft()[i] <= point[i] && point[i] <= GetRight()[i];

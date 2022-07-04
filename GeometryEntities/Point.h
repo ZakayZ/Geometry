@@ -43,8 +43,6 @@ class Point : public Void<T, Dimension>, public Vector<T, Dimension> {
   T Distance(const Point<T, Dimension>& point) const;
 
   std::unique_ptr<Void<T, Dimension>> Intersection(const Point<T, Dimension>& point) const;
-
-  bool Inside(const B)
 };
 
 template <typename T>
