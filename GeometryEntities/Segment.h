@@ -4,6 +4,7 @@
 
 #include "Void.h"
 #include "Vector.h"
+#include "BoundaryBox.h"
 #include "Point.h"
 
 #ifndef GEOMERTY_GEOMETRY_SEGMENT_H_
@@ -53,7 +54,12 @@ class Segment : public Void<T, Dimension> {
   Point<T, Dimension> Projection(const Point<T, Dimension>& point) const;
   Segment<T, Dimension> Projection(const Segment<T, Dimension>& segment) const;
 
+  bool Intersects(const BoundaryBox<T, Dimension>& box) const;
+  bool Inside(const BoundaryBox<T, Dimension>& box) const;
+
  private:
+  inline std::pair<T, T> FindBoxIntersection(const BoundaryBox<T, Dimension>& box) const;
+
   Point<T, Dimension> point_l_;
   Point<T, Dimension> point_r_;
 };
@@ -211,6 +217,43 @@ template <typename T, size_t Dimension>
 bool operator==(const Segment<T, Dimension>& a, const Segment<T, Dimension>& b) {
   return a.GetLeft() == b.GetLeft() && a.GetRight() == b.GetRight() ||
       a.GetRight() == b.GetLeft() && a.GetLeft() == b.GetRight();
+}
+
+template <typename T, size_t Dimension>
+bool Segment<T, Dimension>::Intersects(const BoundaryBox<T, Dimension>& box) const {
+  auto[t_min, t_max] = FindBoxIntersection(box);
+  return t_min <= t_max && std::max(t_min, 0) <= std::min(t_max, 1);
+}
+
+template <typename T, size_t Dimension>
+bool Segment<T, Dimension>::Inside(const BoundaryBox<T, Dimension>& box) const {
+  auto[t_min, t_max] = FindBoxIntersection(box);
+  return t_min <= t_max && 0 <= t_min && 1 <= t_max;
+}
+
+template <typename T, size_t Dimension>
+std::pair<T, T> Segment<T, Dimension>::FindBoxIntersection(const BoundaryBox<T, Dimension>& box) const {
+  T t_min;
+  T t_max;
+  auto direction = GetDirection();
+  Vector<T, Dimension>& origin = point_l_;
+  if ((box.GetRight()[0] - box.GetLeft()[0]) * direction[0] > 0) {
+    t_min = (box.GetLeft()[0] - origin[0]) / direction[0];
+    t_max = (box.GetRight()[0] - origin[0]) / direction[0];
+  } else {
+    t_min = (box.GetRight()[0] - origin[0]) / direction[0];
+    t_max = (box.GetLeft()[0] - origin[0]) / direction[0];
+  }
+  for (size_t i = 1; i < Dimension; ++i) {
+    if ((box.GetRight()[i] - box.GetLeft()[i]) * direction[i] > 0) {
+      t_min = std::max(t_min, (box.GetLeft()[i] - origin[i]) / direction[i]);
+      t_max = std::min(t_max, (box.GetRight()[i] - origin[i]) / direction[i]);
+    } else {
+      t_min = std::max(t_min, (box.GetRight()[i] - origin[i]) / direction[i]);
+      t_max = std::min(t_max, (box.GetLeft()[i] - origin[i]) / direction[i]);
+    }
+  }
+  return {t_min, t_max};
 }
 
 template <typename T, size_t Dimension>

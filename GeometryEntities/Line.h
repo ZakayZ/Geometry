@@ -6,6 +6,7 @@
 #include "Vector.h"
 #include "Point.h"
 #include "Segment.h"
+#include "BoundaryBox.h"
 
 #ifndef GEOMERTY_GEOMETRY_LINE_H_
 #define GEOMERTY_GEOMETRY_LINE_H_
@@ -58,6 +59,8 @@ class Line : public Void<T, Dimension> {
 
   Point<T, Dimension> Projection(const Point<T, Dimension>& point) const;
   Segment<T, Dimension> Projection(const Segment<T, Dimension>& segment) const;
+
+  bool Intersects(const BoundaryBox<T, Dimension>& box) const;
 
  private:
   Point<T, Dimension> origin_;
@@ -231,6 +234,29 @@ Point<T, Dimension> Line<T, Dimension>::Projection(const Point<T, Dimension>& po
 template <typename T, size_t Dimension>
 Segment<T, Dimension> Line<T, Dimension>::Projection(const Segment<T, Dimension>& segment) const {
   return {Projection(segment.GetLeft()), Projection(segment.GetRight())};
+}
+
+template <typename T, size_t Dimension>
+bool Line<T, Dimension>::Intersects(const BoundaryBox<T, Dimension>& box) const {
+  T t_min;
+  T t_max;
+  if ((box.GetRight()[0] - box.GetLeft()[0]) * direction_[0] > 0) {
+    t_min = (box.GetLeft()[0] - origin_[0]) / direction_[0];
+    t_max = (box.GetRight()[0] - origin_[0]) / direction_[0];
+  } else {
+    t_min = (box.GetRight()[0] - origin_[0]) / direction_[0];
+    t_max = (box.GetLeft()[0] - origin_[0]) / direction_[0];
+  }
+  for (size_t i = 0; i < Dimension; ++i) {
+    if ((box.GetRight()[i] - box.GetLeft()[i]) * direction_[i] > 0) {
+      t_min = std::max(t_min, (box.GetLeft()[i] - origin_[i]) / direction_[i]);
+      t_max = std::min(t_max, (box.GetRight()[i] - origin_[i]) / direction_[i]);
+    } else {
+      t_min = std::max(t_min, (box.GetRight()[i] - origin_[i]) / direction_[i]);
+      t_max = std::min(t_max, (box.GetLeft()[i] - origin_[i]) / direction_[i]);
+    }
+  }
+  return t_min <= t_max;
 }
 
 template <typename T, size_t Dimension>

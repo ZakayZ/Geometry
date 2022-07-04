@@ -36,11 +36,15 @@ class Point : public Void<T, Dimension>, public Vector<T, Dimension> {
 
   /// TODO has different affine transformation
 
+  /// calc
+
   T SquaredDistance(const Point<T, Dimension>& point) const;
 
   T Distance(const Point<T, Dimension>& point) const;
 
   std::unique_ptr<Void<T, Dimension>> Intersection(const Point<T, Dimension>& point) const;
+
+  bool Inside(const B)
 };
 
 template <typename T>

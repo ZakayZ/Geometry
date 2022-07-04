@@ -7,6 +7,7 @@
 #include "Point.h"
 #include "Line.h"
 #include "Segment.h"
+#include "BoundaryBox.h"
 
 #ifndef GEOMERTY_GEOMETRY_PLANE_H_
 #define GEOMERTY_GEOMETRY_PLANE_H_
@@ -67,6 +68,8 @@ class Plane : public Void<T, 3> {
   Point3<T> Projection(const Point3<T>& point) const;
   Segment3<T> Projection(const Segment3<T>& segment) const;
   Line3<T> Projection(const Line3<T>& line) const;
+
+  bool Intersects(const BoundaryBox3<T>& box) const;
 
  private:
   Point3<T> origin_;
@@ -254,6 +257,31 @@ Segment3<T> Plane<T>::Projection(const Segment3<T>& segment) const {
 template <typename T>
 Line3<T> Plane<T>::Projection(const Line3<T>& line) const {
   return {Projection(line.GetOrigin()), Projection(line.GetPoint(1))};
+}
+
+template <typename T>
+bool Plane<T>::Intersects(const BoundaryBox3<T>& box) const {
+  auto p1 = box.GetLeft();
+  auto p2 = box.GetRight();
+  if (MixedProduct(p1 - origin_, abscissa_, ordinate_) * MixedProduct(p1 - origin_, abscissa_, ordinate_) <= 0) {
+    return true;
+  }
+  p1[0] = box.GetRight()[0];
+  p2[0] = box.GetLeft()[0];
+  if (MixedProduct(p1 - origin_, abscissa_, ordinate_) * MixedProduct(p1 - origin_, abscissa_, ordinate_) <= 0) {
+    return true;
+  }
+  p1[1] = box.GetRight()[1];
+  p2[1] = box.GetLeft()[1];
+  if (MixedProduct(p1 - origin_, abscissa_, ordinate_) * MixedProduct(p1 - origin_, abscissa_, ordinate_) <= 0) {
+    return true;
+  }
+  p1[0] = box.GetLeft()[0];
+  p2[0] = box.GetRight()[0];
+  if (MixedProduct(p1 - origin_, abscissa_, ordinate_) * MixedProduct(p1 - origin_, abscissa_, ordinate_) <= 0) {
+    return true;
+  }
+  return false;
 }
 
 template <typename T>
