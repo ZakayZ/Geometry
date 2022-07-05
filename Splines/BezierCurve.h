@@ -4,33 +4,13 @@
 
 #include <array>
 #include <vector>
+
+#include "BezierHelper.h"
 #include "GeometryEntities/Vector.h"
 #include "GeometryEntities/BoundaryBox.h"
 
 #ifndef GEOMERTY_SPLINES_BEZIERCURVE_H_
 #define GEOMERTY_SPLINES_BEZIERCURVE_H_
-
-struct Casteljau {};
-
-template <size_t N, size_t K>
-struct BinomialCoefficient {
-  static_assert(K <= N);
-  static const size_t value = BinomialCoefficient<N - 1, K - 1>::value + BinomialCoefficient<N - 1, K>::value;
-};
-
-template <size_t K>
-struct BinomialCoefficient<1, K> {
-  static_assert(K <= 1);
-  static const size_t value = 1;
-};
-
-template <>
-struct BinomialCoefficient<0, 0> {
-  static const size_t value = 1;
-};
-
-template <size_t N, size_t K>
-static const size_t binomial_coefficient = BinomialCoefficient<N, K>::value;
 
 template <typename T, size_t Dimension, size_t Degree>
 class BezierCurve {
@@ -50,8 +30,8 @@ class BezierCurve {
   BezierCurve& operator=(BezierCurve&& other) noexcept = default;
 
   /// getters and setter
-  Vector<T, Dimension>& GetControl(size_t index) { return controls_[index]; }
-  const Vector<T, Dimension>& GetControl(size_t index) const { return controls_[index]; }
+  Vector<T, Dimension>& GetControlPoint(size_t index) { return controls_[index]; }
+  const Vector<T, Dimension>& GetControlPoint(size_t index) const { return controls_[index]; }
   Vector<T, Dimension> GetPoint(const T& value) const;
   Vector<T, Dimension> GetPoint(const T& value, Casteljau) const;
   Vector<T, Dimension> GetVelocity(const T& value) const;
@@ -62,18 +42,19 @@ class BezierCurve {
   Vector<T, Dimension> GetNormal(const T& value) const;
 
   /// calc
-  std::vector<Vector<T, Dimension>> GetDivision(size_t divisions);
-  std::vector<Vector<T, Dimension>> GetDivision(size_t divisions, Casteljau);
-  void Shift(const Vector<T, Dimension>& shift) const;
-  template <bool Access = Degree <= 3, typename = std::enable_if_t<Access>>
-  BoundaryBox<T, Dimension> GetBoundaryBox() const;
+  BezierCurve<T, Dimension, Degree - 1> GetDerivative() const;
+  template <typename... Args>
+  std::vector<Vector<T, Dimension>> GetDivision(size_t divisions, Args... args);
+  void Translate(const Vector<T, Dimension>& shift) const;
+  template <typename... Args>
+  BoundaryBox<T, Dimension> GetBoundaryBox(Args... args) const;
 
  private:
   template <typename U>
   void PushVector(U&& value);
   template <typename U, typename... Args>
   void PushVector(U&& value, Args&& ...args);
-  static inline std::array<std::pair<T, T>, Degree + 1> CalcDegrees(const T& value);
+  static inline std::array<std::pair<T, T>, Degree + 1> CalcPowers(const T& value);
   static inline Vector<T, Dimension> LinearInterpolation(
       const Vector<T, Dimension>& a, Vector<T, Dimension>& b, const T& value);
 
@@ -85,6 +66,9 @@ class BezierCurve {
 
   template <size_t Index>
   inline Vector<T, Dimension> AccelerationSum(const T& value, const std::array<std::pair<T, T>, Degree + 1>& powers);
+
+  template <size_t Index>
+  inline void FillDerivativePoints(std::array<Vector<T, Dimension>, Degree>& control_points);
 
   std::array<Vector<T, Dimension>, Degree + 1> controls_;
 };
@@ -105,14 +89,11 @@ using CubicBezier2d = CubicBezier<double, 2>;
 using CubicBezier3f = CubicBezier<float, 2>;
 using CubicBezier3d = CubicBezier<double, 2>;
 
-template <size_t Divisions, typename T, size_t Dimension, size_t Degree>
-std::array<Vector<T, Dimension>, Divisions> GetDivision(const BezierCurve<T, Dimension, Degree>& curve);
-
-template <size_t Divisions, typename T, size_t Dimension, size_t Degree>
-std::array<Vector<T, Dimension>, Divisions> GetDivision(const BezierCurve<T, Dimension, Degree>& curve, Casteljau);
+template <size_t Divisions, typename T, size_t Dimension, size_t Degree, typename... Args>
+std::array<Vector<T, Dimension>, Divisions> GetDivision(const BezierCurve<T, Dimension, Degree>& curve, Args... args);
 
 template <typename T, size_t Dimension, size_t Degree>
-BezierCurve<T, Dimension, Degree> Shifted(
+BezierCurve<T, Dimension, Degree> Translated(
     const BezierCurve<T, Dimension, Degree>& curve, const Vector<T, Dimension>& shift);
 
 ///////////////////////////////////////////////////DEFINITION///////////////////////////////////////////////////////////
@@ -153,17 +134,20 @@ BezierCurve<T, Dimension, Degree>& BezierCurve<T, Dimension, Degree>::operator=(
 
 template <typename T, size_t Dimension, size_t Degree>
 Vector<T, Dimension> BezierCurve<T, Dimension, Degree>::GetPoint(const T& value) const {
-  return PointSum<Degree>(value);
+  auto powers = CalcPowers(value);
+  return PointSum<Degree>(value, powers);
 }
 
 template <typename T, size_t Dimension, size_t Degree>
 Vector<T, Dimension> BezierCurve<T, Dimension, Degree>::GetVelocity(const T& value) const {
-  return VelocitySum<Degree>(value);
+  auto powers = CalcPowers(value);
+  return VelocitySum<Degree>(value, powers);
 }
 
 template <typename T, size_t Dimension, size_t Degree>
 Vector<T, Dimension> BezierCurve<T, Dimension, Degree>::GetAcceleration(const T& value) const {
-  return AccelerationSum<Degree>(value);
+  auto powers = CalcPowers(value);
+  return AccelerationSum<Degree>(value, powers);
 }
 
 template <typename T, size_t Dimension, size_t Degree>
@@ -207,49 +191,76 @@ Vector<T, Dimension> BezierCurve<T, Dimension, Degree>::GetNormal(const T& value
 }
 
 template <typename T, size_t Dimension, size_t Degree>
-std::vector<Vector<T, Dimension>> BezierCurve<T, Dimension, Degree>::GetDivision(size_t divisions) {
+BezierCurve<T, Dimension, Degree - 1> BezierCurve<T, Dimension, Degree>::GetDerivative() const {
+  std::array<Vector<T, Dimension>, Degree> control_points;
+  FillDerivativePoints<Degree>(control_points);
+  return {control_points};
+
+}
+
+template <typename T, size_t Dimension, size_t Degree>
+template <typename... Args>
+std::vector<Vector<T, Dimension>> BezierCurve<T, Dimension, Degree>::GetDivision(size_t divisions, Args... args) {
   std::vector<Vector<T, Dimension>> division(divisions);
   T delta = T(1) / (divisions - 1);
   T value = 0;
   for (size_t i = 0; i < divisions; ++i) {
-    division[i] = GetPoint(value);
+    division[i] = GetPoint(value, args...);
     value += delta;
   }
   return division;
 }
 
 template <typename T, size_t Dimension, size_t Degree>
-std::vector<Vector<T, Dimension>> BezierCurve<T, Dimension, Degree>::GetDivision(size_t divisions, Casteljau) {
-  std::vector<Vector<T, Dimension>> division(divisions);
-  T delta = T(1) / (divisions - 1);
-  T value = 0;
-  for (size_t i = 0; i < divisions; ++i) {
-    division[i] = GetPoint(value, Casteljau());
-    value += delta;
-  }
-  return division;
-}
-
-template <typename T, size_t Dimension, size_t Degree>
-void BezierCurve<T, Dimension, Degree>::Shift(const Vector<T, Dimension>& shift) const {
+void BezierCurve<T, Dimension, Degree>::Translate(const Vector<T, Dimension>& shift) const {
   for (auto& pivot : controls_) {
     pivot += shift;
   }
 }
 
 template <typename T, size_t Dimension, size_t Degree>
-template <bool Access, typename>
-BoundaryBox<T, Dimension> BezierCurve<T, Dimension, Degree>::GetBoundaryBox() const {
-  if constexpr (Degree == 2) {
-    for (size_t i = 0; i < Dimension; ++i) {
-      T t_dim = (controls_[0][i] - controls_[1][i]) / (controls_[0][i] + controls_[2][i] - 3 * controls_[1][i]);
-
-
+template <typename... Args>
+BoundaryBox<T, Dimension> BezierCurve<T, Dimension, Degree>::GetBoundaryBox(Args... args) const {
+  Vector<T, Dimension> l_border = controls_[0];
+  Vector<T, Dimension> r_border = controls_[0];
+  for (size_t i = 0; i < Dimension; ++i) {
+    if constexpr (Degree == 2) {
+      T t_dim = (controls_[0][i] - controls_[1][i]) / (controls_[0][i] + controls_[2][i] - 2 * controls_[1][i]);
+      if (t_dim >= 0 && t_dim <= 1) {
+        auto point = GetPoint(t_dim, args...);
+        l_border[i] = std::min(l_border[i], point[i]);
+        r_border[i] = std::max(r_border[i], point[i]);
+      }
+      l_border[i] = std::min(l_border[i], controls_[Degree][i]);
+      r_border[i] = std::max(r_border[i], controls_[Degree][i]);
     }
   }
   if constexpr (Degree == 3) {
-
+    for (size_t i = 0; i < Dimension; ++i) {
+      auto roots = QuadraticSolver<T>::Solve(controls_[1][i] + controls_[3][i] - 2 * controls_[2][i],
+                                             2 * (controls_[2][i] - controls_[1][i]),
+                                             controls_[1][i] - controls_[0][i]);
+      for (const auto& root : roots) {
+        if (0 <= root && root <= 1) {
+          auto point = GetPoint(root, args...);
+          l_border[i] = std::min(l_border[i], point[i]);
+          r_border[i] = std::max(r_border[i], point[i]);
+        }
+      }
+      l_border[i] = std::min(l_border[i], controls_[Degree][i]);
+      r_border[i] = std::max(r_border[i], controls_[Degree][i]);
+    }
   }
+
+  if constexpr (Degree > 3 || Degree == 1) {
+    for (size_t i = 0; i < Dimension; ++i) {
+      for (const auto& point : controls_) {
+        l_border[i] = std::min(l_border[i], point[i]);
+        r_border[i] = std::max(r_border[i], point[i]);
+      }
+    }
+  }
+  return {l_border, r_border};
 }
 
 template <typename T, size_t Dimension, size_t Degree>
@@ -266,7 +277,7 @@ void BezierCurve<T, Dimension, Degree>::PushVector(U&& value, Args&& ... args) {
 }
 
 template <typename T, size_t Dimension, size_t Degree>
-std::array<std::pair<T, T>, Degree + 1> BezierCurve<T, Dimension, Degree>::CalcDegrees(const T& value) {
+std::array<std::pair<T, T>, Degree + 1> BezierCurve<T, Dimension, Degree>::CalcPowers(const T& value) {
   std::array<std::pair<T, T>, Degree + 1> data;
   data[0] = {1, 1};
   for (size_t i = 1; i <= Degree; ++i) {
@@ -337,37 +348,36 @@ Vector<T, Dimension> BezierCurve<T, Dimension, Degree>::AccelerationSum(
   }
 }
 
-template <size_t Divisions, typename T, size_t Dimension, size_t Degree>
-std::array<Vector<T, Dimension>, Divisions> GetDivision(const BezierCurve<T, Dimension, Degree>& curve) {
-  static_assert(Divisions > 1);
-  std::array<Vector<T, Dimension>, Divisions> division;
-  T delta = T(1) / (Divisions - 1);
-  T value = 0;
-  for (size_t i = 0; i < Divisions; ++i) {
-    division[i] = curve.GetPoint(value);
-    value += delta;
+template <typename T, size_t Dimension, size_t Degree>
+template <size_t Index>
+void BezierCurve<T, Dimension, Degree>::FillDerivativePoints(std::array<Vector<T, Dimension>, Degree>& control_points) {
+  control_points[Index] = (
+      (Degree - Index) * binomial_coefficient<Degree, Index> * controls_[Index]
+          + (Index + 1) * binomial_coefficient<Degree, Index + 1> * controls_[Index + 1]
+  ) / binomial_coefficient<Degree - 1, Index>;
+  if constexpr (Index + 1 < Degree) {
+    FillDerivativePoints<Index + 1>(control_points);
   }
-  return division;
 }
 
-template <size_t Divisions, typename T, size_t Dimension, size_t Degree>
-std::array<Vector<T, Dimension>, Divisions> GetDivision(const BezierCurve<T, Dimension, Degree>& curve, Casteljau) {
+template <size_t Divisions, typename T, size_t Dimension, size_t Degree, typename... Args>
+std::array<Vector<T, Dimension>, Divisions> GetDivision(const BezierCurve<T, Dimension, Degree>& curve, Args... args) {
   static_assert(Divisions > 1);
   std::array<Vector<T, Dimension>, Divisions> division;
   T delta = T(1) / (Divisions - 1);
   T value = 0;
   for (size_t i = 0; i < Divisions; ++i) {
-    division[i] = curve.GetPoint(value, Casteljau());
+    division[i] = curve.GetPoint(value, args...);
     value += delta;
   }
   return division;
 }
 
 template <typename T, size_t Dimension, size_t Degree>
-BezierCurve<T, Dimension, Degree> Shifted(
+BezierCurve<T, Dimension, Degree> Translated(
     const BezierCurve<T, Dimension, Degree>& curve, const Vector<T, Dimension>& shift) {
   auto copy = curve;
-  copy.Shift(shift);
+  copy.Translate(shift);
   return copy;
 }
 
