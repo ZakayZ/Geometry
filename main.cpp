@@ -7,8 +7,10 @@
 #include "GeometryEntities/Line.h"
 #include "GeometryEntities/Segment.h"
 #include "GeometryEntities/Plane.h"
+#include "GeometryEntities/BoundaryBox.h"
 
 #include "Splines/BezierCurve.h"
+#include "Splines/CanonicalBezierCurve.h"
 
 using namespace std;
 
@@ -133,23 +135,23 @@ void LineTest() {
   std::cout << "distance ok\n";
 
   auto inter = a.Intersection(b);
-  assert(inter->GetType() == Entity::Point);
-  assert(*static_cast<Point3d*>(inter.get()) == a.GetOrigin());
+  assert(inter.GetType() == Entity::Point);
+  assert(inter.GetValue<Point3d>() == a.GetOrigin());
 
   inter = a.Intersection(a);
-  assert(inter->GetType() == Entity::Line);
-  assert(*static_cast<Line3d*>(inter.get()) == a);
+  assert(inter.GetType() == Entity::Line);
+  assert(inter.GetValue<Line3d>() == a);
 
   inter = a.Intersection(Segment3d(a.GetPoint(0), a.GetPoint(1)));
-  assert(inter->GetType() == Entity::Segment);
-  assert(*static_cast<Segment3d*>(inter.get()) == Segment3d(a.GetPoint(0), a.GetPoint(1)));
+  assert(inter.GetType() == Entity::Segment);
+  assert(inter.GetValue<Segment3d>() == Segment3d(a.GetPoint(0), a.GetPoint(1)));
 
   inter = a.Intersection(Segment3d(b.GetPoint(-1), b.GetPoint(1)));
-  assert(inter->GetType() == Entity::Point);
-  assert(*static_cast<Point3d*>(inter.get()) == a.GetOrigin());
+  assert(inter.GetType() == Entity::Point);
+  assert(inter.GetValue<Point3d>() == a.GetOrigin());
 
   inter = a.Intersection(Segment3d(b.GetPoint(-1), b.GetPoint(-0.5)));
-  assert(inter->GetType() == Entity::Void);
+  assert(inter.GetType() == Entity::Void);
 
   std::cout << "intersection ok\n";
 
@@ -203,19 +205,19 @@ void SegmentTest() {
   std::cout << "distance ok\n";
 
   auto inter = a.Intersection(Point3d(0, 0, 0));
-  assert(inter->GetType() == Entity::Point);
-  assert(*static_cast<Point3d*>(inter.get()) == Point3d(0, 0, 0));
+  assert(inter.GetType() == Entity::Point);
+  assert(inter.GetValue<Point3d>() == Point3d(0, 0, 0));
 
   inter = a.Intersection(b);
-  assert(inter->GetType() == Entity::Segment);
-  assert(*static_cast<Segment3d*>(inter.get()) == b);
+  assert(inter.GetType() == Entity::Segment);
+  assert(inter.GetValue<Segment3d>() == b);
 
   inter = a.Intersection(c);
-  assert(inter->GetType() == Entity::Point);
-  assert(*static_cast<Point3d*>(inter.get()) == Point3d(0, 0, 0));
+  assert(inter.GetType() == Entity::Point);
+  assert(inter.GetValue<Point3d>() == Point3d(0, 0, 0));
 
   inter = a.Intersection(d);
-  assert(inter->GetType() == Entity::Void);
+  assert(inter.GetType() == Entity::Void);
   std::cout << "intersection ok\n";
 
   assert(a.Projection(Point3d(0, 15, 2)) == Point3d(0, 0, 0));
@@ -269,32 +271,32 @@ void PlaneTest() {
   std::cout << "distance ok\n";
 
   auto inter = a.Intersection(Point3d(1, 1, 0));
-  assert(inter->GetType() == Entity::Point);
-  assert(*static_cast<Point3d*>(inter.get()) == Point3d(1, 1, 0));
+  assert(inter.GetType() == Entity::Point);
+  assert(inter.GetValue<Point3d>() == Point3d(1, 1, 0));
 
   inter = a.Intersection(Line3d({0, 0, -1}, Point3d(0, 0, 1)));
-  assert(inter->GetType() == Entity::Point);
-  assert(*static_cast<Point3d*>(inter.get()) == Point3d(0, 0, 0));
+  assert(inter.GetType() == Entity::Point);
+  assert(inter.GetValue<Point3d>() == Point3d(0, 0, 0));
 
   inter = a.Intersection(Line3d({0, 1, 0}, Point3d(1, 0, 0)));
-  assert(inter->GetType() == Entity::Line);
-  assert(*static_cast<Line3d*>(inter.get()) == Line3d({0, 1, 0}, Point3d(1, 0, 0)));
+  assert(inter.GetType() == Entity::Line);
+  assert(inter.GetValue<Line3d>() == Line3d({0, 1, 0}, Point3d(1, 0, 0)));
 
   inter = a.Intersection(Segment3d({0, 1, 1}, Point3d(1, 0, 0)));
-  assert(inter->GetType() == Entity::Point);
-  assert(*static_cast<Point3d*>(inter.get()) == Point3d(1, 0, 0));
+  assert(inter.GetType() == Entity::Point);
+  assert(inter.GetValue<Point3d>() == Point3d(1, 0, 0));
 
   inter = a.Intersection(Segment3d({0, 1, 0}, Point3d(1, 0, 0)));
-  assert(inter->GetType() == Entity::Segment);
-  assert(*static_cast<Segment3d*>(inter.get()) == Segment3d({0, 1, 0}, Point3d(1, 0, 0)));
+  assert(inter.GetType() == Entity::Segment);
+  assert(inter.GetValue<Segment3d>() == Segment3d({0, 1, 0}, Point3d(1, 0, 0)));
 
   inter = a.Intersection(c);
-  assert(inter->GetType() == Entity::Line);
-  assert(*static_cast<Line3d*>(inter.get()) == Line3d(Point3d(0, 0, 0), Vector3d(1, 0, 0)));
+  assert(inter.GetType() == Entity::Line);
+  assert(inter.GetValue<Line3d>() == Line3d(Point3d(0, 0, 0), Vector3d(1, 0, 0)));
 
   inter = a.Intersection(copy);
-  assert(inter->GetType() == Entity::Plane);
-  assert(*static_cast<Plane<double>*>(inter.get()) == a);
+  assert(inter.GetType() == Entity::Plane);
+  assert(inter.GetValue<Plane<double>>() == a);
   std::cout << "intersection ok\n";
 
   assert(a.Projection(Point3d(1, 1, 1)) == Point3d(1, 1, 0));

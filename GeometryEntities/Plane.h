@@ -2,6 +2,7 @@
 // Created by Artem Novikov on 24.06.2022.
 //
 
+#include "GeometricEntity.h"
 #include "Void.h"
 #include "Vector.h"
 #include "Point.h"
@@ -19,10 +20,10 @@ enum class PlaneRelationship {
 };
 
 template <typename T>
-class Plane : public Void<T, 3> {
+class Plane {
  public:
   /// construction
-  Plane() : Void<T, 3>(Entity::Plane) {}
+  Plane() = default;
   Plane(const Point3<T>& origin, const Vector3<T>& abscissa, const Vector3<T>& ordinates);
   Plane(const Point3<T>& p1, const Point3<T>& p2, const Point3<T>& p3);
   Plane(const Plane& other) = default;
@@ -31,6 +32,8 @@ class Plane : public Void<T, 3> {
   Plane& operator=(Plane&& other) noexcept = default;
 
   /// setters and getters
+  Entity GetType() const { return Entity::Plane; }
+  size_t GetDimension() const { return 3; }
   Point3<T> GetPoint(T x, T y) const { return origin_ + abscissa_ * x + ordinate_ * y; }
   Point3<T>& GetOrigin() { return origin_; }
   const Point3<T>& GetOrigin() const { return origin_; }
@@ -56,10 +59,10 @@ class Plane : public Void<T, 3> {
   T Distance(const Line3<T>& line) const;
   T Distance(const Plane<T>& plane) const;
 
-  std::unique_ptr<Void3<T>> Intersection(const Point3<T>& point) const;
-  std::unique_ptr<Void3<T>> Intersection(const Segment3<T>& segment) const;
-  std::unique_ptr<Void3<T>> Intersection(const Line3<T>& line) const;
-  std::unique_ptr<Void3<T>> Intersection(const Plane<T>& plane) const;
+  GeometryEntity Intersection(const Point3<T>& point) const;
+  GeometryEntity Intersection(const Segment3<T>& segment) const;
+  GeometryEntity Intersection(const Line3<T>& line) const;
+  GeometryEntity Intersection(const Plane<T>& plane) const;
 
   Point3<T> Projection(const Point3<T>& point, const Vector3<T>& a) const;
   Segment3<T> Projection(const Segment3<T>& segment, const Vector3<T>& a) const;
@@ -92,11 +95,11 @@ PlaneRelationship FindRelationship(const Plane<T>& a, const Plane<T>& b);
 
 template <typename T>
 Plane<T>::Plane(const Point3<T>& origin, const Vector3<T>& abscissa, const Vector3<T>& ordinates)
-    : Void<T, 3>(Entity::Plane), origin_(origin), abscissa_(abscissa), ordinate_(ordinates) {}
+    : origin_(origin), abscissa_(abscissa), ordinate_(ordinates) {}
 
 template <typename T>
 Plane<T>::Plane(const Point3<T>& p1, const Point3<T>& p2, const Point3<T>& p3)
-    : Void<T, 3>(Entity::Plane), origin_(p1), abscissa_(p2 - p1), ordinate_(p3 - p1) {}
+    : origin_(p1), abscissa_(p2 - p1), ordinate_(p3 - p1) {}
 
 template <typename T>
 void Plane<T>::Normalise() {
@@ -170,46 +173,46 @@ T Plane<T>::Distance(const Plane<T>& plane) const {
 }
 
 template <typename T>
-std::unique_ptr<Void3<T>> Plane<T>::Intersection(const Point3<T>& point) const {
+GeometryEntity Plane<T>::Intersection(const Point3<T>& point) const {
   if (Contains(point)) {
-    return std::make_unique<Point3<T>>(point);
+    return GeometryEntity(point);
   }
-  return std::make_unique<Void3<T>>();
+  return MakeGeometryEntity<Void3<T>>();
 }
 
 template <typename T>
-std::unique_ptr<Void3<T>> Plane<T>::Intersection(const Segment3<T>& segment) const {
+GeometryEntity Plane<T>::Intersection(const Segment3<T>& segment) const {
   T m1 = MixedProduct(segment.GetRight() - origin_, abscissa_, ordinate_);
   T m2 = MixedProduct(segment.GetLeft() - origin_, abscissa_, ordinate_);
   if (Comparator<T>::IsZero(m1) && Comparator<T>::IsZero(m2)) {
-    return std::make_unique<Segment3<T>>(segment);
+    return GeometryEntity(segment);
   }
   if (m1 * m2 <= 0) {
     T t = MixedProduct(origin_ - segment.GetLeft(), abscissa_, ordinate_)
         / MixedProduct(segment.GetDirection(), abscissa_, ordinate_);
-    return std::make_unique<Point3<T>>(segment.GetPoint(t));
+    return GeometryEntity(segment.GetPoint(t));
   }
-  return std::make_unique<Void3<T>>();
+  return MakeGeometryEntity<Void3<T>>();
 }
 
 template <typename T>
-std::unique_ptr<Void3<T>> Plane<T>::Intersection(const Line3<T>& line) const {
+GeometryEntity Plane<T>::Intersection(const Line3<T>& line) const {
   if (Contains(line.GetOrigin())) {
     if (Comparator<T>::IsZero(MixedProduct(line.GetDirection(), abscissa_, ordinate_))) {
-      return std::make_unique<Line3<T>>(line);
+      return GeometryEntity(line);
     }
-    return std::make_unique<Point3<T>>(line.GetOrigin());
+    return GeometryEntity(line.GetOrigin());
   }
   if (Comparator<T>::IsZero(MixedProduct(line.GetDirection(), abscissa_, ordinate_))) {
-    return std::make_unique<Void3<T>>();
+    return MakeGeometryEntity<Void3<T>>();
   }
   T t = MixedProduct(origin_ - line.GetOrigin(), abscissa_, ordinate_)
       / MixedProduct(line.GetDirection(), abscissa_, ordinate_);
-  return std::make_unique<Point3<T>>(line.GetPoint(t));
+  return GeometryEntity(line.GetPoint(t));
 }
 
 template <typename T>
-std::unique_ptr<Void3<T>> Plane<T>::Intersection(const Plane<T>& plane) const {
+GeometryEntity Plane<T>::Intersection(const Plane<T>& plane) const {
   switch (FindRelationship(*this, plane)) {
     case PlaneRelationship::Intersecting: {
       Vector3<T> dir = CrossProduct(CrossProduct(abscissa_, ordinate_), CrossProduct(plane.abscissa_, plane.ordinate_));
@@ -219,10 +222,10 @@ std::unique_ptr<Void3<T>> Plane<T>::Intersection(const Plane<T>& plane) const {
       }
       T t = MixedProduct(origin_ - l.GetOrigin(), abscissa_, ordinate_)
           / MixedProduct(l.GetDirection(), abscissa_, ordinate_);
-      return std::make_unique<Line3<T>>(l.GetPoint(t), dir);
+      return MakeGeometryEntity<Line3<T>>(l.GetPoint(t), std::move(dir));
     }
-    case PlaneRelationship::Identical: { return std::make_unique<Plane<T>>(plane); }
-    case PlaneRelationship::Parallel: { return std::make_unique<Void3<T>>(); }
+    case PlaneRelationship::Identical: { return GeometryEntity(plane); }
+    case PlaneRelationship::Parallel: { return MakeGeometryEntity<Void3<T>>(); }
   }
 }
 

@@ -2,6 +2,7 @@
 // Created by Artem Novikov on 28.06.2022.
 //
 
+#include <cstddef>
 #include "Entities.h"
 
 #ifndef GEOMERTY_GEOMETRY_VOID_H_
@@ -10,12 +11,10 @@
 template <typename T, size_t Dimension>
 class Void {
  public:
-  Void() : type_(Entity::Void) {}
-  Void(Entity type) : type_(type) {}
-  [[nodiscard]] Entity GetType() const { return type_; }
-  virtual  ~Void() = default;
- protected:
-  Entity type_ = Entity::Void;
+  Void() = default;
+  Entity GetType() const{ return Entity::Void; }
+  size_t GetDimension() const{ return Dimension; }
+  ~Void() = default;
 };
 
 template <typename T>

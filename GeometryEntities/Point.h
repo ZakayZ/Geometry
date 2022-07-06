@@ -3,6 +3,7 @@
 //
 
 #include <array>
+#include "GeometricEntity.h"
 #include "Void.h"
 #include "Vector.h"
 
@@ -15,10 +16,10 @@ enum class PointRelationship {
 };
 
 template <typename T, size_t Dimension>
-class Point : public Void<T, Dimension>, public Vector<T, Dimension> {
+class Point : public Vector<T, Dimension> {
  public:
   /// construction
-  Point() : Void<T, Dimension>(Entity::Point) {}
+  Point() {}
   template <typename... Args>
   Point(Args&& ... args);
   template <typename U, template <typename, typename...> class Container, typename... Args,
@@ -27,14 +28,16 @@ class Point : public Void<T, Dimension>, public Vector<T, Dimension> {
   Point(std::initializer_list<T> list);
   Point(const Point<T, Dimension>& other) = default;
   Point(Point<T, Dimension>&& other) noexcept = default;
-  explicit Point(const Vector<T, Dimension>& vec) : Void<T, Dimension>::type_(Entity::Point),
-                                                    Vector<T, Dimension>(vec) {}
-  explicit Point(Vector<T, Dimension>&& vec) noexcept: Void<T, Dimension>::type_(Entity::Point),
-                                                       Vector<T, Dimension>(std::move(vec)) {}
+  explicit Point(const Vector<T, Dimension>& vec) : Vector<T, Dimension>(vec) {}
+  explicit Point(Vector<T, Dimension>&& vec) noexcept: Vector<T, Dimension>(std::move(vec)) {}
   Point& operator=(const Point& other) = default;
   Point& operator=(Point&& other) noexcept = default;
 
   /// TODO has different affine transformation
+
+  /// getters and setters
+  Entity GetType() const{ return Entity::Point; }
+  size_t GetDimension()const { return Dimension; }
 
   /// calc
 
@@ -42,7 +45,7 @@ class Point : public Void<T, Dimension>, public Vector<T, Dimension> {
 
   T Distance(const Point<T, Dimension>& point) const;
 
-  std::unique_ptr<Void<T, Dimension>> Intersection(const Point<T, Dimension>& point) const;
+  GeometryEntity Intersection(const Point<T, Dimension>& point) const;
 };
 
 template <typename T>
@@ -73,17 +76,14 @@ PointRelationship FindRelationship(const Point<T, Dimension>& a, const Point<T, 
 
 template <typename T, size_t Dimension>
 template <typename... Args>
-Point<T, Dimension>::Point(Args&& ... args)
-    : Void<T, Dimension>(Entity::Point), Vector<T, Dimension>(std::forward<Args>(args)...) {}
+Point<T, Dimension>::Point(Args&& ... args) : Vector<T, Dimension>(std::forward<Args>(args)...) {}
 
 template <typename T, size_t Dimension>
 template <typename U, template <typename, typename...> class Container, typename... Args, typename>
-Point<T, Dimension>::Point(const Container<U, Args...>& data)
-    : Void<T, Dimension>(Entity::Point), Vector<T, Dimension>(data) {}
+Point<T, Dimension>::Point(const Container<U, Args...>& data) : Vector<T, Dimension>(data) {}
 
 template <typename T, size_t Dimension>
-Point<T, Dimension>::Point(std::initializer_list<T> list) : Void<T, Dimension>(Entity::Point),
-                                                            Vector<T, Dimension>(list) {}
+Point<T, Dimension>::Point(std::initializer_list<T> list) : Vector<T, Dimension>(list) {}
 
 template <typename T, size_t Dimension>
 T Point<T, Dimension>::SquaredDistance(const Point<T, Dimension>& point) const {
@@ -96,11 +96,11 @@ T Point<T, Dimension>::Distance(const Point<T, Dimension>& point) const {
 }
 
 template <typename T, size_t Dimension>
-std::unique_ptr<Void<T, Dimension>> Point<T, Dimension>::Intersection(const Point<T, Dimension>& point) const {
+GeometryEntity Point<T, Dimension>::Intersection(const Point<T, Dimension>& point) const {
   if (point == *this) {
-    return std::unique_ptr<Point<T, Dimension>>(point);
+    return GeometryEntity(point);
   }
-  return std::unique_ptr<Void<T, Dimension>>();
+  return MakeGeometryEntity<Void<T, Dimension>>();
 }
 
 template <typename T, size_t Dimension>
