@@ -15,14 +15,13 @@ struct BinomialCoefficient {
   static const size_t value = BinomialCoefficient<N - 1, K - 1>::value + BinomialCoefficient<N - 1, K>::value;
 };
 
-template <size_t K>
-struct BinomialCoefficient<1, K> {
-  static_assert(K <= 1);
+template <size_t N>
+struct BinomialCoefficient<N, 0> {
   static const size_t value = 1;
 };
 
-template <>
-struct BinomialCoefficient<0, 0> {
+template <size_t N>
+struct BinomialCoefficient<N, N> {
   static const size_t value = 1;
 };
 

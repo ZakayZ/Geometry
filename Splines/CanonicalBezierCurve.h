@@ -16,8 +16,8 @@ class CanonicalBezierCurve : public BezierCurve<T, Dimension, Degree> {
   CanonicalBezierCurve(CanonicalBezierCurve&& other) noexcept = default;
   explicit CanonicalBezierCurve(const BezierCurve<T, Dimension, Degree>& curve, size_t cuts = 2);
   explicit CanonicalBezierCurve(BezierCurve<T, Dimension, Degree>&& curve, size_t cuts = 2) noexcept;
-  template <typename... Args, typename = std::enable_if_t<sizeof...(Args) == Degree>>
-  CanonicalBezierCurve(Args&& ... args, size_t cuts = 2);
+  template <typename... Args, typename = std::enable_if_t<sizeof...(Args) == Degree + 1>>
+  CanonicalBezierCurve(size_t cuts, Args&& ... args); /// Remake
   CanonicalBezierCurve(std::initializer_list<Vector<T, Dimension>> list, size_t cuts = 2);
   template <typename U, template <typename, typename...> class Container, typename... Args>
   explicit CanonicalBezierCurve(const Container<Vector<U, Dimension>, Args...>& data, size_t cuts = 2);
@@ -39,8 +39,8 @@ class CanonicalBezierCurve : public BezierCurve<T, Dimension, Degree> {
   inline T GetLength(const T& value = 1) const;
   inline T GetArcLength(const T& length) const;
   template <typename... Args>
-  std::vector<Vector<T, Dimension>> GetDivision(size_t divisions, Args... args);
-  void Resize(size_t cuts_size);
+  std::vector<Vector<T, Dimension>> GetDivision(size_t divisions, Args... args) const;
+  void UpdateCuts(size_t cuts_size);
 
  private:
   std::vector<T> cuts;
@@ -71,33 +71,33 @@ std::array<Vector<T, Dimension>, Divisions> GetDivision(
 template <typename T, size_t Dimension, size_t Degree>
 CanonicalBezierCurve<T, Dimension, Degree>::CanonicalBezierCurve(
     const BezierCurve<T, Dimension, Degree>& curve, size_t cuts): BezierCurve<T, Dimension, Degree>(curve) {
-  Resize(cuts);
+  UpdateCuts(cuts);
 }
 
 template <typename T, size_t Dimension, size_t Degree>
 CanonicalBezierCurve<T, Dimension, Degree>::CanonicalBezierCurve(BezierCurve<T, Dimension, Degree>&& curve, size_t cuts)
 noexcept: BezierCurve<T, Dimension, Degree>(std::move(curve)) {
-  Resize(cuts);
+  UpdateCuts(cuts);
 }
 
 template <typename T, size_t Dimension, size_t Degree>
 template <typename... Args, typename>
-CanonicalBezierCurve<T, Dimension, Degree>::CanonicalBezierCurve(
-    Args&& ... args, size_t cuts): BezierCurve<T, Dimension, Degree>(std::forward<Args>(args)...) {
-  Resize(cuts);
+CanonicalBezierCurve<T, Dimension, Degree>::CanonicalBezierCurve(size_t cuts, Args&& ... args)
+    : BezierCurve<T, Dimension, Degree>(std::forward<Args>(args)...) {
+  UpdateCuts(cuts);
 }
 
 template <typename T, size_t Dimension, size_t Degree>
 CanonicalBezierCurve<T, Dimension, Degree>::CanonicalBezierCurve(
     std::initializer_list<Vector<T, Dimension>> list, size_t cuts): BezierCurve<T, Dimension, Degree>(list) {
-  Resize(cuts);
+  UpdateCuts(cuts);
 }
 
 template <typename T, size_t Dimension, size_t Degree>
 template <typename U, template <typename, typename...> class Container, typename... Args>
 CanonicalBezierCurve<T, Dimension, Degree>::CanonicalBezierCurve(
     const Container<Vector<U, Dimension>, Args...>& data, size_t cuts):BezierCurve<T, Dimension, Degree>(data) {
-  Resize(cuts);
+  UpdateCuts(cuts);
 }
 
 template <typename T, size_t Dimension, size_t Degree>
@@ -150,7 +150,7 @@ T CanonicalBezierCurve<T, Dimension, Degree>::GetArcLength(const T& length) cons
 template <typename T, size_t Dimension, size_t Degree>
 template <typename... Args>
 std::vector<Vector<T, Dimension>> CanonicalBezierCurve<T, Dimension, Degree>::GetDivision(
-    size_t divisions, Args... args) {
+    size_t divisions, Args... args) const {
   std::vector<Vector<T, Dimension>> division(divisions);
   T delta = cuts.back() / (divisions - 1);
   T value = 0;
@@ -162,7 +162,7 @@ std::vector<Vector<T, Dimension>> CanonicalBezierCurve<T, Dimension, Degree>::Ge
 }
 
 template <typename T, size_t Dimension, size_t Degree>
-void CanonicalBezierCurve<T, Dimension, Degree>::Resize(size_t cuts_size) {
+void CanonicalBezierCurve<T, Dimension, Degree>::UpdateCuts(size_t cuts_size) {
   cuts.resize(cuts_size);
   T delta = T(1) / (cuts_size - 1);
   T value = 0;

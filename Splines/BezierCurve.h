@@ -16,9 +16,11 @@ template <typename T, size_t Dimension, size_t Degree>
 class BezierCurve {
  public:
   /// constructors
-  template <typename... Args, typename = std::enable_if_t<sizeof...(Args) == Degree>>
+  template <typename... Args, typename = std::enable_if_t<sizeof...(Args) == Degree + 1>>
   BezierCurve(Args&& ... args);
   BezierCurve(std::initializer_list<Vector<T, Dimension>> list);
+  explicit BezierCurve(const std::array<Vector<T, Dimension>, Degree + 1>& array);
+  explicit BezierCurve(std::array<Vector<T, Dimension>, Degree + 1>&& array);
   template <typename U, template <typename, typename...> class Container, typename... Args>
   explicit BezierCurve(const Container<Vector<U, Dimension>, Args...>& data);
   BezierCurve(const BezierCurve& other) = default;
@@ -42,10 +44,12 @@ class BezierCurve {
   Vector<T, Dimension> GetNormal(const T& value) const;
 
   /// calc
-  BezierCurve<T, Dimension, Degree - 1> GetDerivative() const;
+  template <bool Access = Degree >= 1, typename  = std::enable_if_t<Access>>
+  BezierCurve<T, Dimension, Degree - 1>
+  GetDerivative() const;
   template <typename... Args>
-  std::vector<Vector<T, Dimension>> GetDivision(size_t divisions, Args... args);
-  void Translate(const Vector<T, Dimension>& shift) const;
+  std::vector<Vector<T, Dimension>> GetDivision(size_t divisions, Args... args) const;
+  void Translate(const Vector<T, Dimension>& shift);
   template <typename... Args>
   BoundaryBox<T, Dimension> GetBoundaryBox(Args... args) const;
 
@@ -59,16 +63,16 @@ class BezierCurve {
       const Vector<T, Dimension>& a, Vector<T, Dimension>& b, const T& value);
 
   template <size_t Index>
-  inline Vector<T, Dimension> PointSum(const T& value, const std::array<std::pair<T, T>, Degree + 1>& powers);
+  inline Vector<T, Dimension> PointSum(const std::array<std::pair<T, T>, Degree + 1>& powers) const;
 
   template <size_t Index>
-  inline Vector<T, Dimension> VelocitySum(const T& value, const std::array<std::pair<T, T>, Degree + 1>& powers);
+  inline Vector<T, Dimension> VelocitySum(const std::array<std::pair<T, T>, Degree + 1>& powers) const;
 
   template <size_t Index>
-  inline Vector<T, Dimension> AccelerationSum(const T& value, const std::array<std::pair<T, T>, Degree + 1>& powers);
+  inline Vector<T, Dimension> AccelerationSum(const std::array<std::pair<T, T>, Degree + 1>& powers) const;
 
   template <size_t Index>
-  inline void FillDerivativePoints(std::array<Vector<T, Dimension>, Degree>& control_points);
+  inline void FillDerivativePoints(std::array<Vector<T, Dimension>, Degree>& control_points) const;
 
   std::array<Vector<T, Dimension>, Degree + 1> controls_;
 };
@@ -114,6 +118,14 @@ BezierCurve<T, Dimension, Degree>::BezierCurve(std::initializer_list<Vector<T, D
 }
 
 template <typename T, size_t Dimension, size_t Degree>
+BezierCurve<T, Dimension, Degree>::BezierCurve(const std::array<Vector<T, Dimension>, Degree + 1>& array)
+    : controls_(array) {}
+
+template <typename T, size_t Dimension, size_t Degree>
+BezierCurve<T, Dimension, Degree>::BezierCurve(std::array<Vector<T, Dimension>, Degree + 1>&& array)
+    : controls_(std::move(array)) {}
+
+template <typename T, size_t Dimension, size_t Degree>
 template <typename U, template <typename, typename...> class Container, typename... Args>
 BezierCurve<T, Dimension, Degree>::BezierCurve(const Container<Vector<U, Dimension>, Args...>& data) {
   assert(data.size() == Degree + 1);
@@ -135,19 +147,19 @@ BezierCurve<T, Dimension, Degree>& BezierCurve<T, Dimension, Degree>::operator=(
 template <typename T, size_t Dimension, size_t Degree>
 Vector<T, Dimension> BezierCurve<T, Dimension, Degree>::GetPoint(const T& value) const {
   auto powers = CalcPowers(value);
-  return PointSum<Degree>(value, powers);
+  return PointSum<Degree>(powers);
 }
 
 template <typename T, size_t Dimension, size_t Degree>
 Vector<T, Dimension> BezierCurve<T, Dimension, Degree>::GetVelocity(const T& value) const {
   auto powers = CalcPowers(value);
-  return VelocitySum<Degree>(value, powers);
+  return VelocitySum<Degree>(powers);
 }
 
 template <typename T, size_t Dimension, size_t Degree>
 Vector<T, Dimension> BezierCurve<T, Dimension, Degree>::GetAcceleration(const T& value) const {
   auto powers = CalcPowers(value);
-  return AccelerationSum<Degree>(value, powers);
+  return AccelerationSum<Degree>(powers);
 }
 
 template <typename T, size_t Dimension, size_t Degree>
@@ -191,16 +203,16 @@ Vector<T, Dimension> BezierCurve<T, Dimension, Degree>::GetNormal(const T& value
 }
 
 template <typename T, size_t Dimension, size_t Degree>
+template <bool, typename>
 BezierCurve<T, Dimension, Degree - 1> BezierCurve<T, Dimension, Degree>::GetDerivative() const {
   std::array<Vector<T, Dimension>, Degree> control_points;
-  FillDerivativePoints<Degree>(control_points);
-  return {control_points};
-
+  FillDerivativePoints<0>(control_points);
+  return BezierCurve<T, Dimension, Degree - 1>(control_points);
 }
 
 template <typename T, size_t Dimension, size_t Degree>
 template <typename... Args>
-std::vector<Vector<T, Dimension>> BezierCurve<T, Dimension, Degree>::GetDivision(size_t divisions, Args... args) {
+std::vector<Vector<T, Dimension>> BezierCurve<T, Dimension, Degree>::GetDivision(size_t divisions, Args... args) const {
   std::vector<Vector<T, Dimension>> division(divisions);
   T delta = T(1) / (divisions - 1);
   T value = 0;
@@ -212,9 +224,9 @@ std::vector<Vector<T, Dimension>> BezierCurve<T, Dimension, Degree>::GetDivision
 }
 
 template <typename T, size_t Dimension, size_t Degree>
-void BezierCurve<T, Dimension, Degree>::Translate(const Vector<T, Dimension>& shift) const {
-  for (auto& pivot : controls_) {
-    pivot += shift;
+void BezierCurve<T, Dimension, Degree>::Translate(const Vector<T, Dimension>& shift) {
+  for (auto& control_point : controls_) {
+    control_point += shift;
   }
 }
 
@@ -296,65 +308,65 @@ Vector<T, Dimension> BezierCurve<T, Dimension, Degree>::LinearInterpolation(
 template <typename T, size_t Dimension, size_t Degree>
 template <size_t Index>
 Vector<T, Dimension> BezierCurve<T, Dimension, Degree>::PointSum(
-    const T& value, const std::array<std::pair<T, T>, Degree + 1>& powers) {
+    const std::array<std::pair<T, T>, Degree + 1>& powers) const {
   if constexpr (Index == 0) {
-    return controls_[Index] * powers[Degree].first;
-  } else { /// TODO find out what is better
-//    auto sum = PointSum<Index - 1>(value);
-//    sum += controls_[Index]
-//        * (std::pow(1 - value, Degree - Index) * std::pow(value, Index) * binomial_coefficient<Degree, Index>);
-//    return sum;
-    return PointSum<Index - 1>(value) + controls_[Index]
-        * (powers[Degree - Index].first * powers[Index].second * binomial_coefficient<Degree, Index>);
+    return controls_[Index] * powers[Degree - Index].first;
+  } else {
+    return PointSum<Index - 1>(powers) + controls_[Index]
+        * (powers[Degree - Index].first * powers[Index].second * static_cast<T>(binomial_coefficient<Degree, Index>));
   }
 }
 
 template <typename T, size_t Dimension, size_t Degree>
 template <size_t Index>
 Vector<T, Dimension> BezierCurve<T, Dimension, Degree>::VelocitySum(
-    const T& value, const std::array<std::pair<T, T>, Degree + 1>& powers) {
+    const std::array<std::pair<T, T>, Degree + 1>& powers) const {
   if constexpr (Index == 0) {
-    return controls_[Index] * (-powers[Degree - 1].first * Degree);
+    return controls_[Index] * -(powers[Degree - 1].first * Degree);
   } else if constexpr (Index == Degree) {
-    return controls_[Index] * (powers[Degree - 1].second * Degree);
+    return controls_[Index] * (powers[Degree - 1].second * Degree) + VelocitySum<Index - 1>(powers);
   } else {
     return controls_[Index] * (binomial_coefficient<Degree, Index> * (
-        Index * powers[Degree - Index].first * powers[Index - 1].second -
-            (Degree - Index) * powers[Degree - Index - 1].first * powers[Index].second)) +
-        VelocitySum<Index - 1>(value);
+        Index * powers[Degree - Index].first * powers[Index - 1].second
+            - (Degree - Index) * powers[Degree - Index - 1].first * powers[Index].second))
+        + VelocitySum<Index - 1>(powers);
   }
 }
 
 template <typename T, size_t Dimension, size_t Degree>
 template <size_t Index>
 Vector<T, Dimension> BezierCurve<T, Dimension, Degree>::AccelerationSum(
-    const T& value, const std::array<std::pair<T, T>, Degree + 1>& powers) {
+    const std::array<std::pair<T, T>, Degree + 1>& powers) const {
   if constexpr (Index == 0) {
-    return controls_[Index] * (powers[Degree - 2].first * Degree * (Degree - 1));
+    return controls_[Index] * (Degree * (Degree - 1) * powers[Degree - 2].first);
   } else if constexpr (Index == 1) {
-    return controls_[Index] * ((Degree - 1) * (Degree - 2) * value * powers[Degree - 3].first
-        - 2 * (Degree - 1) * powers[Degree - 2].first);
+    return controls_[Index] * (binomial_coefficient<Degree, Index>
+        * ((Degree - 1) * (Degree - 2) * powers[1].second * powers[Degree - 3].first
+            - 2 * static_cast<T>(Degree - 1) * powers[Degree - 2].first)) + AccelerationSum<Index - 1>(powers);
   } else if constexpr (Index == Degree) {
-    return controls_[Index] * (Degree * (Degree - 1) * powers[Degree - 2].second);
+    return controls_[Index] * (Degree * (Degree - 1) * powers[Degree - 2].second)
+        + AccelerationSum<Index - 1>(powers);
   } else if constexpr (Index + 1 == Degree) {
-    return controls_[Index] * ((Degree - 1) * (Degree - 2) * (1 - value) * powers[Degree - 3].second
-        - 2 * (Degree - 1) * powers[Degree - 2].first);
+    return controls_[Index] * (binomial_coefficient<Degree, Index>
+        * ((Degree - 1) * (Degree - 2) * powers[1].first * powers[Degree - 3].second
+            - 2 * static_cast<T>(Degree - 1) * powers[Degree - 2].second)) + AccelerationSum<Index - 1>(powers);
   } else {
     return controls_[Index] * (binomial_coefficient<Degree, Index> * (
-        (Degree - Index) * (Degree - Index - 1) * powers[Degree - Index - 2].first * powers[Index].second -
-            2 * (Degree - Index) * Index * powers[Degree - Index - 1].first * powers[Index - 1].second +
-            Index * (Index - 1) * powers[Index - 2].second * powers[Degree - Index].first)) +
-        VelocitySum<Index - 1>(value);
+        (Degree - Index) * (Degree - Index - 1) * powers[Degree - Index - 2].first * powers[Index].second
+            - 2 * (Degree - Index) * Index * powers[Degree - Index - 1].first * powers[Index - 1].second
+            + Index * (Index - 1) * powers[Index - 2].second * powers[Degree - Index].first))
+        + AccelerationSum<Index - 1>(powers);
   }
 }
 
 template <typename T, size_t Dimension, size_t Degree>
 template <size_t Index>
-void BezierCurve<T, Dimension, Degree>::FillDerivativePoints(std::array<Vector<T, Dimension>, Degree>& control_points) {
+void BezierCurve<T, Dimension, Degree>::FillDerivativePoints(
+    std::array<Vector<T, Dimension>, Degree>& control_points) const {
   control_points[Index] = (
-      (Degree - Index) * binomial_coefficient<Degree, Index> * controls_[Index]
-          + (Index + 1) * binomial_coefficient<Degree, Index + 1> * controls_[Index + 1]
-  ) / binomial_coefficient<Degree - 1, Index>;
+      static_cast<T>((Index + 1) * binomial_coefficient<Degree, Index + 1>) * controls_[Index + 1]
+          - static_cast<T>((Degree - Index) * binomial_coefficient<Degree, Index>) * controls_[Index]
+  ) / static_cast<T>(binomial_coefficient<Degree - 1, Index>);
   if constexpr (Index + 1 < Degree) {
     FillDerivativePoints<Index + 1>(control_points);
   }
