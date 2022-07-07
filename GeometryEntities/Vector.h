@@ -129,6 +129,9 @@ Vector<T, Dimension> operator*(const U& scalar, const Vector<T, Dimension>& v);
 template <typename T, size_t Dimension, typename U, typename = std::enable_if_t<std::is_constructible_v<T, U>>>
 Vector<T, Dimension> operator/(const Vector<T, Dimension>& v, const U& scalar);
 
+template<typename T, size_t Dimension>
+Vector<T, Dimension> operator-(const Vector<T, Dimension>& vector);
+
 /// vector calc
 
 template <typename T, size_t Dimension>
@@ -192,7 +195,7 @@ template <typename U, template <typename, typename...> class Container, typename
 Vector<T, Dimension>::Vector(const Container<U, Args...>& data) {
   assert(data.size() <= Dimension);
   size_t index = 0;
-  for(auto& el: data){
+  for (auto& el : data) {
     operator[](index++) = el;
   }
 }
@@ -354,6 +357,11 @@ Vector<T, Dimension> operator/(const Vector<T, Dimension>& v, const U& scalar) {
   auto copy = v;
   copy /= scalar;
   return copy;
+}
+
+template<typename T, size_t Dimension>
+Vector<T, Dimension> operator-(const Vector<T, Dimension>& vector){
+  return vector * -1;
 }
 
 template <typename T, size_t Dimension>

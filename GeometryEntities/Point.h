@@ -6,6 +6,7 @@
 #include "GeometricEntity.h"
 #include "Void.h"
 #include "Vector.h"
+#include "Transform.h"
 
 #ifndef GEOMERTY_GEOMETRY_POINT_H_
 #define GEOMERTY_GEOMETRY_POINT_H_
@@ -33,11 +34,9 @@ class Point : public Vector<T, Dimension> {
   Point& operator=(const Point& other) = default;
   Point& operator=(Point&& other) noexcept = default;
 
-  /// TODO has different affine transformation
-
   /// getters and setters
-  Entity GetType() const{ return Entity::Point; }
-  size_t GetDimension()const { return Dimension; }
+  Entity GetType() const { return Entity::Point; }
+  size_t GetDimension() const { return Dimension; }
 
   /// calc
 
@@ -46,6 +45,9 @@ class Point : public Vector<T, Dimension> {
   T Distance(const Point<T, Dimension>& point) const;
 
   GeometryEntity Intersection(const Point<T, Dimension>& point) const;
+
+  template <size_t OutputDimension>
+  Point<T, OutputDimension> ApplyTransform(const Transform<T, Dimension, OutputDimension>& transform) const;
 };
 
 template <typename T>
@@ -101,6 +103,13 @@ GeometryEntity Point<T, Dimension>::Intersection(const Point<T, Dimension>& poin
     return GeometryEntity(point);
   }
   return MakeGeometryEntity<Void<T, Dimension>>();
+}
+
+template <typename T, size_t Dimension>
+template <size_t OutputDimension>
+Point<T, OutputDimension> Point<T, Dimension>::ApplyTransform(
+    const Transform<T, Dimension, OutputDimension>& transform) const {
+  return transform.GetMatrix() * (*this) + transform.GetShift();
 }
 
 template <typename T, size_t Dimension>

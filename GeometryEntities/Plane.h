@@ -9,6 +9,7 @@
 #include "Line.h"
 #include "Segment.h"
 #include "BoundaryBox.h"
+#include "Transform.h"
 
 #ifndef GEOMERTY_GEOMETRY_PLANE_H_
 #define GEOMERTY_GEOMETRY_PLANE_H_
@@ -73,6 +74,9 @@ class Plane {
   Line3<T> Projection(const Line3<T>& line) const;
 
   bool Intersects(const BoundaryBox3<T>& box) const;
+
+  template <size_t OutputDimension>
+  Segment<T, OutputDimension> ApplyTransform(const Transform<T, 3, OutputDimension>& transform) const;
 
  private:
   Point3<T> origin_;
@@ -285,6 +289,12 @@ bool Plane<T>::Intersects(const BoundaryBox3<T>& box) const {
     return true;
   }
   return false;
+}
+
+template <typename T>
+template <size_t OutputDimension>
+Segment<T, OutputDimension> Plane<T>::ApplyTransform(const Transform<T, 3, OutputDimension>& transform) const {
+  return {transform(origin_), transform(abscissa_), transform(ordinate_)};
 }
 
 template <typename T>

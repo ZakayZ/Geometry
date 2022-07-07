@@ -7,6 +7,7 @@
 #include "Vector.h"
 #include "BoundaryBox.h"
 #include "Point.h"
+#include "Transform.h"
 
 #ifndef GEOMERTY_GEOMETRY_SEGMENT_H_
 #define GEOMERTY_GEOMETRY_SEGMENT_H_
@@ -31,8 +32,8 @@ class Segment {
   ~Segment() = default;
 
   /// setters and getters
-  Entity GetType() const{ return Entity::Segment; }
-  size_t GetDimension()const { return Dimension; }
+  Entity GetType() const { return Entity::Segment; }
+  size_t GetDimension() const { return Dimension; }
   Point<T, Dimension> GetPoint(T t) const { return point_l_ * (1 - t) + point_r_ * t; }
   Point<T, Dimension> operator[](T t) const { return GetPoint(t); }
   Point<T, Dimension>& GetLeft() { return point_l_; }
@@ -59,6 +60,9 @@ class Segment {
 
   bool Intersects(const BoundaryBox<T, Dimension>& box) const;
   bool Inside(const BoundaryBox<T, Dimension>& box) const;
+
+  template <size_t OutputDimension>
+  Segment<T, OutputDimension> ApplyTransform(const Transform<T, Dimension, OutputDimension>& transform) const;
 
  private:
   inline std::pair<T, T> FindBoxIntersection(const BoundaryBox<T, Dimension>& box) const;
@@ -232,6 +236,13 @@ template <typename T, size_t Dimension>
 bool Segment<T, Dimension>::Inside(const BoundaryBox<T, Dimension>& box) const {
   auto[t_min, t_max] = FindBoxIntersection(box);
   return t_min <= t_max && 0 <= t_min && 1 <= t_max;
+}
+
+template <typename T, size_t Dimension>
+template <size_t OutputDimension>
+Segment<T, OutputDimension> Segment<T, Dimension>::ApplyTransform(
+    const Transform<T, Dimension, OutputDimension>& transform) const {
+  return {transform(point_l_), transform(point_r_)};
 }
 
 template <typename T, size_t Dimension>

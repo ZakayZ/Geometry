@@ -65,6 +65,9 @@ class Line {
 
   bool Intersects(const BoundaryBox<T, Dimension>& box) const;
 
+  template <size_t OutputDimension>
+  Line<T, OutputDimension> ApplyTransform(const Transform<T, Dimension, OutputDimension>& transform) const;
+
  private:
   Point<T, Dimension> origin_;
   Vector<T, Dimension> direction_;
@@ -260,6 +263,13 @@ bool Line<T, Dimension>::Intersects(const BoundaryBox<T, Dimension>& box) const 
     }
   }
   return t_min <= t_max;
+}
+
+template <typename T, size_t Dimension>
+template <size_t OutputDimension>
+Line<T, OutputDimension> Line<T, Dimension>::ApplyTransform(
+    const Transform<T, Dimension, OutputDimension>& transform) const {
+  return {transform(origin_), transform(direction_)};
 }
 
 template <typename T, size_t Dimension>
