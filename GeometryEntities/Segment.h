@@ -9,8 +9,8 @@
 #include "Point.h"
 #include "Transform.h"
 
-#ifndef GEOMERTY_GEOMETRY_SEGMENT_H_
-#define GEOMERTY_GEOMETRY_SEGMENT_H_
+#ifndef GEOMETRY_GEOMETRY_SEGMENT_H_
+#define GEOMETRY_GEOMETRY_SEGMENT_H_
 
 enum class SegmentRelationship {
   Parallel,
@@ -294,4 +294,4 @@ SegmentRelationship FindRelationship(const Segment<T, Dimension>& a, const Segme
   return SegmentRelationship::Skew;
 }
 
-#endif //GEOMERTY_GEOMETRY_SEGMENT_H_
+#endif //GEOMETRY_GEOMETRY_SEGMENT_H_

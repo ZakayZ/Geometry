@@ -5,8 +5,8 @@
 #include "Vector.h"
 #include "Matrix.h"
 
-#ifndef GEOMERTY_GEOMETRYENTITIES_TRANSFORM_H_
-#define GEOMERTY_GEOMETRYENTITIES_TRANSFORM_H_
+#ifndef GEOMETRY_GEOMETRY_TRANSFORM_H_
+#define GEOMETRY_GEOMETRY_TRANSFORM_H_
 
 template <typename T, size_t InputDimension, size_t OutputDimension = InputDimension>
 class Transform {
@@ -60,6 +60,15 @@ Transform<T, InputDimension, OutputDimension> operator-(const Transform<T, Input
 
 template <typename T, size_t Dimension>
 Transform<T, Dimension> Inverted(const Transform<T, Dimension>& transform);
+
+template <typename T, size_t Dimension>
+Transform<T, Dimension> Shift(const Vector<T, Dimension>& shift);
+
+template <typename T, size_t Dimension>
+Transform<T, Dimension> Flip(size_t direction);
+
+template <typename T, size_t Dimension>
+Transform<T, Dimension> Rotate(size_t abscissa, size_t ordinate, const T& angle);
 
 //////////////////////////////////////////////////////////DEFINITION////////////////////////////////////////////////////
 
@@ -155,4 +164,26 @@ Transform<T, Dimension> Inverted(const Transform<T, Dimension>& transform) {
   return copy;
 }
 
-#endif //GEOMERTY_GEOMETRYENTITIES_TRANSFORM_H_
+template <typename T, size_t Dimension>
+Transform<T, Dimension> Shift(const Vector<T, Dimension>& shift) {
+  return Transform(Identity<Dimension>(), shift);
+}
+
+template <typename T, size_t Dimension>
+Transform<T, Dimension> Flip(size_t direction) {
+  auto matrix = Identity<Dimension>();
+  matrix[direction][direction] *= -1;
+  return Transform(matrix, Vector<T, Dimension>());
+}
+
+template <typename T, size_t Dimension>
+Transform<T, Dimension> Rotate(size_t abscissa, size_t ordinate, const T& angle) {
+  auto matrix = Identity<Dimension>();
+  matrix[abscissa][abscissa] = std::cos(angle);
+  matrix[ordinate][abscissa] = -std::sin(angle);
+  matrix[ordinate][ordinate] = matrix[abscissa][abscissa];
+  matrix[abscissa][ordinate] = -matrix[ordinate][abscissa];
+  return Transform(matrix, Vector<T, Dimension>());
+}
+
+#endif //GEOMETRY_GEOMETRY_TRANSFORM_H_

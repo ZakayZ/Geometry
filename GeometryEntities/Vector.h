@@ -8,8 +8,8 @@
 #include "is_iterable.h"
 #include "Data.h"
 
-#ifndef GEOMERTY_GEOMETRY_VECTOR_H_
-#define GEOMERTY_GEOMETRY_VECTOR_H_
+#ifndef GEOMETRY_GEOMETRY_VECTOR_H_
+#define GEOMETRY_GEOMETRY_VECTOR_H_
 
 enum class VectorRelationship {
   Parallel,
@@ -466,4 +466,4 @@ std::istream& operator>>(std::istream& in, Vector<T, Dimension>& v) {
   return in;
 }
 
-#endif //GEOMERTY_GEOMETRY_VECTOR_H_
+#endif //GEOMETRY_GEOMETRY_VECTOR_H_

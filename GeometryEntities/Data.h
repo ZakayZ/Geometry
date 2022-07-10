@@ -5,8 +5,8 @@
 #include <array>
 #include "Comparator.h"
 
-#ifndef GEOMERTY_GEOMETRY_DATA_H_
-#define GEOMERTY_GEOMETRY_DATA_H_
+#ifndef GEOMETRY_GEOMETRY_DATA_H_
+#define GEOMETRY_GEOMETRY_DATA_H_
 
 template <typename T, size_t Dimension>
 union Data {
@@ -55,4 +55,4 @@ bool operator!=(const Data<T, Dimension>& a, const Data<T, Dimension>& b) {
   return !(a == b);
 }
 
-#endif //GEOMERTY_GEOMETRY_DATA_H_
+#endif //GEOMETRY_GEOMETRY_DATA_H_

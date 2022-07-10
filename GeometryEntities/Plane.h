@@ -11,8 +11,8 @@
 #include "BoundaryBox.h"
 #include "Transform.h"
 
-#ifndef GEOMERTY_GEOMETRY_PLANE_H_
-#define GEOMERTY_GEOMETRY_PLANE_H_
+#ifndef GEOMETRY_GEOMETRY_PLANE_H_
+#define GEOMETRY_GEOMETRY_PLANE_H_
 
 enum class PlaneRelationship {
   Parallel,
@@ -323,4 +323,4 @@ PlaneRelationship FindRelationship(const Plane<T>& a, const Plane<T>& b) {
   return PlaneRelationship::Intersecting;
 }
 
-#endif //GEOMERTY_GEOMETRY_PLANE_H_
+#endif //GEOMETRY_GEOMETRY_PLANE_H_

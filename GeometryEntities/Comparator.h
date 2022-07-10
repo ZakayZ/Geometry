@@ -4,8 +4,8 @@
 
 #include <cmath>
 
-#ifndef GEOMERTY_GEOMETRY_COMPARATOR_H_
-#define GEOMERTY_GEOMETRY_COMPARATOR_H_
+#ifndef GEOMETRY_GEOMETRY_COMPARATOR_H_
+#define GEOMETRY_GEOMETRY_COMPARATOR_H_
 
 template <typename T>
 class Comparator {
@@ -56,4 +56,4 @@ class Comparator<float> {
   constexpr static const float eps = 1e-3;
 };
 
-#endif //GEOMERTY_GEOMETRY_COMPARATOR_H_
+#endif //GEOMETRY_GEOMETRY_COMPARATOR_H_

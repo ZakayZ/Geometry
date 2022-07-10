@@ -5,8 +5,8 @@
 #include <cstddef>
 #include "Entities.h"
 
-#ifndef GEOMERTY_GEOMETRY_VOID_H_
-#define GEOMERTY_GEOMETRY_VOID_H_
+#ifndef GEOMETRY_GEOMETRY_VOID_H_
+#define GEOMETRY_GEOMETRY_VOID_H_
 
 template <typename T, size_t Dimension>
 class Void {
@@ -31,4 +31,4 @@ using Void3i = Void3<int>;
 using Void3f = Void3<float>;
 using Void3d = Void3<double>;
 
-#endif //GEOMERTY_GEOMETRY_VOID_H_
+#endif //GEOMETRY_GEOMETRY_VOID_H_

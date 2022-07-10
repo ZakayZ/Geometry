@@ -8,9 +8,14 @@
 #include "GeometryEntities/Segment.h"
 #include "GeometryEntities/Plane.h"
 #include "GeometryEntities/BoundaryBox.h"
+#include "GeometryEntities/Transform.h"
 
 #include "Splines/BezierCurve.h"
 #include "Splines/CanonicalBezierCurve.h"
+#include "Splines/Spline.h"
+#include "Splines/CanonicalSpline.h"
+
+#include <SFML/Graphics.hpp>
 
 using namespace std;
 
@@ -22,6 +27,7 @@ void VectorTest() {
   p.z = 3;
 
   /// constructors
+  const Vector<float, 3> cv(1.f, 0.f, 0.f);
   Vector<float, 3> a(1.f, 0.f, 0.f);
   Vector<float, 3> b({0.f, 1.f, 0.f});
   Vector<float, 3> c(std::vector<float>({1.f, 1.f, 1.f}));
@@ -333,11 +339,72 @@ void GeometryTest() {
   PlaneTest();
 }
 
-void BezierTest() {
+sf::VertexArray Convert(const std::vector<Point2f>& points, Vector2f shift, sf::Color color, float scale = 1) {
+  sf::VertexArray arr(sf::LineStrip, points.size());
+  for (size_t i = 0; i < points.size(); ++i) {
+    arr[i].position = sf::Vector2f(shift[0] + points[i].data().x * scale, shift[1] + points[i].data().y * scale);
+    arr[i].color = color;
+  }
+  return arr;
+}
 
+void BezierTest() {
+  sf::RenderWindow window(sf::VideoMode(1980, 1080), "My window");
+  std::vector<Vector2f>
+      vv = {Vector2f(0, 0), Vector2f(100, 0), Vector2f(100, 100), Vector2f(0, 100), Vector2f(190, 0)};
+  BezierCurve<float, 2, 4> curve(vv);
+  CanonicalBezierCurve<float, 2, 4> can_curve(curve, 100);
+  auto derivative = curve.GetDerivative();
+  derivative.Translate({500, 500});
+  curve.Translate({500, 500});
+  can_curve.Translate({700, 700});
+//  for (size_t i = 1; i < 100; ++i) {
+//    std::cout << curve.GetAcceleration(float(1) / i) << ' ' << derivative.GetVelocity(float(1) / i) << '\n';
+//  }
+  auto div_curve = Convert(curve.GetDivision(100), {0, 0}, sf::Color::White);
+  auto div_can = Convert(can_curve.GetDivision(100), {0, 0}, sf::Color::Red);
+  auto div_der = Convert(derivative.GetDivision(100), {0, 0}, sf::Color::Green);
+  auto div_der_der = Convert(derivative.GetDerivative().GetDivision(100), {500, 500}, sf::Color::Blue, 0.1);
+  std::array<sf::CircleShape, 5> points;
+  for (size_t i = 0; i < 5; ++i) {
+    points[i].setRadius(5);
+    points[i].setOrigin(5, 5);
+    points[i].setPosition(curve.GetControlPoint(i).data().x, curve.GetControlPoint(i).data().y);
+  }
+  auto box = derivative.GetBoundaryBox();
+  sf::RectangleShape
+      rect({box.GetRight().data().x - box.GetLeft().data().x, box.GetRight().data().y - box.GetLeft().data().y});
+  rect.setPosition({box.GetLeft().data().x, box.GetLeft().data().y});
+  rect.setFillColor(sf::Color::Transparent);
+  rect.setOutlineThickness(2);
+
+//  for (auto& point : derivative.GetDivision(100)) {
+//    std::cout << point << '\n';
+//  }
+  while (window.isOpen()) {
+    sf::Event event;
+    while (window.pollEvent(event)) {
+      if (event.type == sf::Event::Closed)
+        window.close();
+    }
+
+    window.clear();
+    window.draw(div_curve);
+    window.draw(div_can);
+    window.draw(div_der);
+    window.draw(div_der_der);
+    for (size_t i = 0; i < 5; ++i) {
+      window.draw(points[i]);
+    }
+    window.draw(rect);
+    window.display();
+  }
 }
 
 int main() {
   cout << "\nGeometry Test \n";
   GeometryTest();
+  std::cout << binomial_coefficient<3, 0> << binomial_coefficient<3, 1> << binomial_coefficient<3, 2>
+            << binomial_coefficient<3, 3> << '\n';
+  BezierTest();
 }

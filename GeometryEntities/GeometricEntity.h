@@ -6,8 +6,8 @@
 #include <iostream>
 #include "Entities.h"
 
-#ifndef GEOMERTY_GEOMETRYENTITIES_GEOMETRICENTITY_H_
-#define GEOMERTY_GEOMETRYENTITIES_GEOMETRICENTITY_H_
+#ifndef GEOMETRY_GEOMETRYENTITIES_GEOMETRICENTITY_H_
+#define GEOMETRY_GEOMETRYENTITIES_GEOMETRICENTITY_H_
 
 class GeometryEntity {
  public:
@@ -79,4 +79,4 @@ GeometryEntity MakeGeometryEntity(Args&& ... args) {
   return geometry_entity;
 }
 
-#endif //GEOMERTY_GEOMETRYENTITIES_GEOMETRICENTITY_H_
+#endif //GEOMETRY_GEOMETRYENTITIES_GEOMETRICENTITY_H_

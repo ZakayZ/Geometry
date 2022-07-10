@@ -5,8 +5,8 @@
 #include <iomanip>
 #include "Vector.h"
 
-#ifndef GEOMERTY_GEOMETRY_MATRIX_H_
-#define GEOMERTY_GEOMETRY_MATRIX_H_
+#ifndef GEOMETRY_GEOMETRY_MATRIX_H_
+#define GEOMETRY_GEOMETRY_MATRIX_H_
 
 template <typename T, size_t Rows, size_t Columns = Rows>
 class Matrix {
@@ -133,6 +133,10 @@ std::ostream& operator<<(std::ostream& out, const Matrix<T, Rows, Columns>& m);
 
 template <typename T, size_t Rows, size_t Columns>
 std::istream& operator>>(std::istream& in, Matrix<T, Rows, Columns>& m);
+
+/// constants
+template <typename T, size_t Dimension>
+const Matrix<T, Dimension>& Identity();
 
 ///////////////////////////////////////////////////////DEFINITION///////////////////////////////////////////////////////
 
@@ -547,4 +551,10 @@ std::istream& operator>>(std::istream& in, Matrix<T, Rows, Columns>& m) {
   return in;
 }
 
-#endif //GEOMERTY_GEOMETRY_MATRIX_H_
+template <typename T, size_t Dimension>
+const Matrix<T, Dimension>& Identity() {
+  static Matrix<T, Dimension> identity;
+  return identity;
+}
+
+#endif //GEOMETRY_GEOMETRY_MATRIX_H_

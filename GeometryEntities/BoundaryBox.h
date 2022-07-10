@@ -4,8 +4,8 @@
 
 #include "Point.h"
 
-#ifndef GEOMERTY_GEOMETRYENTITIES_BOUNDARYBOX_H_
-#define GEOMERTY_GEOMETRYENTITIES_BOUNDARYBOX_H_
+#ifndef GEOMETRY_GEOMETRYENTITIES_BOUNDARYBOX_H_
+#define GEOMETRY_GEOMETRYENTITIES_BOUNDARYBOX_H_
 
 template <typename T, size_t Dimension>
 class BoundaryBox {
@@ -80,4 +80,4 @@ bool BoundaryBox<T, Dimension>::Intersects(const BoundaryBox& box) const {
   return is_intersecting;
 }
 
-#endif //GEOMERTY_GEOMETRYENTITIES_BOUNDARYBOX_H_
+#endif //GEOMETRY_GEOMETRYENTITIES_BOUNDARYBOX_H_

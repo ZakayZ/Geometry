@@ -8,8 +8,8 @@
 #include "Vector.h"
 #include "Transform.h"
 
-#ifndef GEOMERTY_GEOMETRY_POINT_H_
-#define GEOMERTY_GEOMETRY_POINT_H_
+#ifndef GEOMETRY_GEOMETRY_POINT_H_
+#define GEOMETRY_GEOMETRY_POINT_H_
 
 enum class PointRelationship {
   Identical,
@@ -117,4 +117,4 @@ PointRelationship FindRelationship(const Point<T, Dimension>& a, const Point<T, 
   return a == b ? PointRelationship::Identical : PointRelationship::None;
 }
 
-#endif //GEOMERTY_GEOMETRY_POINT_H_
+#endif //GEOMETRY_GEOMETRY_POINT_H_

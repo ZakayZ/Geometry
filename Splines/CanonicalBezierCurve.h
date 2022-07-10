@@ -5,8 +5,8 @@
 #include <vector>
 #include "BezierCurve.h"
 
-#ifndef GEOMERTY_SPLINES_CANONICALBEZIERCURVE_H_
-#define GEOMERTY_SPLINES_CANONICALBEZIERCURVE_H_
+#ifndef GEOMETRY_SPLINES_CANONICALBEZIERCURVE_H_
+#define GEOMETRY_SPLINES_CANONICALBEZIERCURVE_H_
 
 template <typename T, size_t Dimension, size_t Degree>
 class CanonicalBezierCurve : public BezierCurve<T, Dimension, Degree> {
@@ -26,21 +26,21 @@ class CanonicalBezierCurve : public BezierCurve<T, Dimension, Degree> {
   CanonicalBezierCurve& operator=(CanonicalBezierCurve&& other) noexcept = default;
 
   /// getters and setter
-  Vector<T, Dimension> GetPoint(const T& length) const;
+  Point<T, Dimension> GetPoint(const T& length) const;
   Vector<T, Dimension> GetVelocity(const T& length) const;
   Vector<T, Dimension> GetAcceleration(const T& length) const;
-  Vector<T, Dimension> GetPoint(const T& length, Casteljau) const;
-  template <bool Access = Dimension <= 3, typename = std::enable_if_t<Access>>
+  Point<T, Dimension> GetPoint(const T& length, Casteljau) const;
   T GetCurvature(const T& length) const;
-  template <bool Access = Dimension <= 3, typename = std::enable_if_t<Access>>
   Vector<T, Dimension> GetNormal(const T& length) const;
 
   /// calc
+  void UpdateCuts();
   inline T GetLength(const T& value = 1) const;
   inline T GetArcLength(const T& length) const;
+  CanonicalBezierCurve<T, Dimension, Degree - 1> GetDerivative() const;
   template <typename... Args>
-  std::vector<Vector<T, Dimension>> GetDivision(size_t divisions, Args... args) const;
-  void UpdateCuts(size_t cuts_size);
+  std::vector<Point<T, Dimension>> GetDivision(size_t divisions, Args... args) const;
+  void ResizeCuts(size_t cuts_size);
 
  private:
   std::vector<T> cuts;
@@ -101,35 +101,50 @@ CanonicalBezierCurve<T, Dimension, Degree>::CanonicalBezierCurve(
 }
 
 template <typename T, size_t Dimension, size_t Degree>
-Vector<T, Dimension> CanonicalBezierCurve<T, Dimension, Degree>::GetPoint(const T& length) const {
+Point<T, Dimension> CanonicalBezierCurve<T, Dimension, Degree>::GetPoint(const T& length) const {
   return BezierCurve<T, Dimension, Degree>::GetPoint(GetArcLength(length));
 }
 
 template <typename T, size_t Dimension, size_t Degree>
 Vector<T, Dimension> CanonicalBezierCurve<T, Dimension, Degree>::GetVelocity(const T& length) const {
-  return BezierCurve<T, Dimension, Degree>::GetVelocity(GetArcLength(length));
+  return Normalised(BezierCurve<T, Dimension, Degree>::GetVelocity(GetArcLength(length)));
 }
 
 template <typename T, size_t Dimension, size_t Degree>
 Vector<T, Dimension> CanonicalBezierCurve<T, Dimension, Degree>::GetAcceleration(const T& length) const {
-  return BezierCurve<T, Dimension, Degree>::GetAcceleration(GetArcLength(length));
+  T t = GetArcLength(length);
+  auto velocity = BezierCurve<T, Dimension, Degree>::GetVelocity(t);
+  auto acceleration = BezierCurve<T, Dimension, Degree>::GetAcceleration(t);
+  auto squared_length = velocity.SquaredLength();
+  return (acceleration - velocity * (DotProduct(acceleration, velocity) / squared_length)) / squared_length;
 }
 
 template <typename T, size_t Dimension, size_t Degree>
-Vector<T, Dimension> CanonicalBezierCurve<T, Dimension, Degree>::GetPoint(const T& length, Casteljau) const {
+Point<T, Dimension> CanonicalBezierCurve<T, Dimension, Degree>::GetPoint(const T& length, Casteljau) const {
   return BezierCurve<T, Dimension, Degree>::GetPoint(GetArcLength(length), Casteljau());
 }
 
 template <typename T, size_t Dimension, size_t Degree>
-template <bool Access, typename>
 T CanonicalBezierCurve<T, Dimension, Degree>::GetCurvature(const T& length) const {
   return BezierCurve<T, Dimension, Degree>::GetCurvature(GetArcLength(length));
 }
 
 template <typename T, size_t Dimension, size_t Degree>
-template <bool Access, typename>
 Vector<T, Dimension> CanonicalBezierCurve<T, Dimension, Degree>::GetNormal(const T& length) const {
   return BezierCurve<T, Dimension, Degree>::GetNormal(GetArcLength(length));
+}
+
+template <typename T, size_t Dimension, size_t Degree>
+void CanonicalBezierCurve<T, Dimension, Degree>::UpdateCuts() {
+  T delta = T(1) / (cuts.size() - 1);
+  T value = 0;
+  Vector<T, Dimension> previous_point = BezierCurve<T, Dimension, Degree>::GetPoint(value);
+  for (size_t i = 1; i < cuts.size(); ++i) {
+    value += delta;
+    auto current_point = BezierCurve<T, Dimension, Degree>::GetPoint(value);
+    cuts[i] = cuts[i - 1] + (current_point - previous_point).Length();
+    previous_point = std::move(current_point);
+  }
 }
 
 template <typename T, size_t Dimension, size_t Degree>
@@ -148,10 +163,15 @@ T CanonicalBezierCurve<T, Dimension, Degree>::GetArcLength(const T& length) cons
 }
 
 template <typename T, size_t Dimension, size_t Degree>
+CanonicalBezierCurve<T, Dimension, Degree - 1> CanonicalBezierCurve<T, Dimension, Degree>::GetDerivative() const {
+  return {BezierCurve<T, Dimension, Degree>::GetDerivative(), cuts.size()};
+}
+
+template <typename T, size_t Dimension, size_t Degree>
 template <typename... Args>
-std::vector<Vector<T, Dimension>> CanonicalBezierCurve<T, Dimension, Degree>::GetDivision(
+std::vector<Point<T, Dimension>> CanonicalBezierCurve<T, Dimension, Degree>::GetDivision(
     size_t divisions, Args... args) const {
-  std::vector<Vector<T, Dimension>> division(divisions);
+  std::vector<Point<T, Dimension>> division(divisions);
   T delta = cuts.back() / (divisions - 1);
   T value = 0;
   for (size_t i = 0; i < divisions; ++i) {
@@ -162,17 +182,9 @@ std::vector<Vector<T, Dimension>> CanonicalBezierCurve<T, Dimension, Degree>::Ge
 }
 
 template <typename T, size_t Dimension, size_t Degree>
-void CanonicalBezierCurve<T, Dimension, Degree>::UpdateCuts(size_t cuts_size) {
+void CanonicalBezierCurve<T, Dimension, Degree>::ResizeCuts(size_t cuts_size) {
   cuts.resize(cuts_size);
-  T delta = T(1) / (cuts_size - 1);
-  T value = 0;
-  Vector<T, Dimension> previous_point = BezierCurve<T, Dimension, Degree>::GetPoint(value);
-  for (size_t i = 1; i < cuts.size(); ++i) {
-    value += delta;
-    auto current_point = BezierCurve<T, Dimension, Degree>::GetPoint(value);
-    cuts[i] = cuts[i - 1] + (current_point - previous_point).Length();
-    previous_point = std::move(current_point);
-  }
+  UpdateCuts();
 }
 
 template <size_t Divisions, typename T, size_t Dimension, size_t Degree, typename... Args>
@@ -189,4 +201,4 @@ std::array<Vector<T, Dimension>, Divisions> GetDivision(
   return division;
 }
 
-#endif //GEOMERTY_SPLINES_CANONICALBEZIERCURVE_H_
+#endif //GEOMETRY_SPLINES_CANONICALBEZIERCURVE_H_

@@ -34,13 +34,17 @@ class QuadraticSolver {
   inline static std::vector<T> Solve(const T& a, const T& b, const T& c) {
     std::vector<T> roots;
     roots.reserve(2);
-    T determinant = b * b - 4 * a * c;
-    if (determinant == 0) {
-      roots.push_back(b / (2 * a));
-    }
-    if (determinant > 0) {
-      roots.push_back((b - std::sqrt(determinant)) / (2 * a));
-      roots.push_back((b + std::sqrt(determinant)) / (2 * a));
+    if (a == 0) {
+      roots.push_back(-c / b);
+    } else {
+      T determinant = b * b - 4 * a * c;
+      if (determinant == 0) {
+        roots.push_back(b / (2 * a));
+      }
+      if (determinant > 0) {
+        roots.push_back((-b - std::sqrt(determinant)) / (2 * a));
+        roots.push_back((-b + std::sqrt(determinant)) / (2 * a));
+      }
     }
     return roots;
   }
