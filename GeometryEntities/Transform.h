@@ -16,6 +16,8 @@ class Transform {
   Transform(Transform&& other) noexcept = default;
   Transform(const Matrix<T, InputDimension, OutputDimension>& matrix,
             const Vector<T, OutputDimension>& shift = Vector<T, OutputDimension>());
+  Transform(Matrix<T, InputDimension, OutputDimension>&& matrix,
+            Vector<T, OutputDimension>&& shift = Vector<T, OutputDimension>());
   ~Transform() = default;
   Transform& operator=(const Transform& other) = default;
   Transform& operator=(Transform&& other) noexcept = default;
@@ -76,6 +78,11 @@ template <typename T, size_t InputDimension, size_t OutputDimension>
 Transform<T, InputDimension, OutputDimension>::Transform(const Matrix<T, InputDimension, OutputDimension>& matrix,
                                                          const Vector<T, OutputDimension>& shift)
     : matrix_(matrix), shift_(shift) {}
+
+template <typename T, size_t InputDimension, size_t OutputDimension>
+Transform<T, InputDimension, OutputDimension>::Transform(Matrix<T, InputDimension, OutputDimension>&& matrix,
+                                                         Vector<T, OutputDimension>&& shift)
+    : matrix_(std::move(matrix)), shift_(std::move(shift)) {}
 
 template <typename T, size_t InputDimension, size_t OutputDimension>
 Vector<T, OutputDimension> Transform<T, InputDimension, OutputDimension>::operator()(
