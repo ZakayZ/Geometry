@@ -11,6 +11,7 @@ enum class Entity {
   Segment,
   Line,
   Plane,
+  Bezier,
 };
 
 #endif //GEOMETRY_GEOMETRYENTITIES_ENTITIES_H_

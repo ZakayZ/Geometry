@@ -2,15 +2,14 @@
 // Created by Artem Novikov on 28.06.2022.
 //
 
-#include "GeometricEntity.h"
+#ifndef GEOMETRY_GEOMETRY_SEGMENT_H_
+#define GEOMETRY_GEOMETRY_SEGMENT_H_
+
 #include "Void.h"
 #include "Vector.h"
 #include "BoundaryBox.h"
 #include "Point.h"
 #include "Transform.h"
-
-#ifndef GEOMETRY_GEOMETRY_SEGMENT_H_
-#define GEOMETRY_GEOMETRY_SEGMENT_H_
 
 enum class SegmentRelationship {
   Parallel,
@@ -20,7 +19,7 @@ enum class SegmentRelationship {
 };
 
 template <typename T, size_t Dimension>
-class Segment {
+class Segment : public Void<T, Dimension> {
  public:
   /// construction
   Segment() = default;
@@ -32,8 +31,7 @@ class Segment {
   ~Segment() = default;
 
   /// setters and getters
-  Entity GetType() const { return Entity::Segment; }
-  size_t GetDimension() const { return Dimension; }
+  [[nodiscard]] Entity GetType() const override { return Entity::Segment; }
   Point<T, Dimension> GetPoint(T t) const { return point_l_ * (1 - t) + point_r_ * t; }
   Point<T, Dimension> operator[](T t) const { return GetPoint(t); }
   Point<T, Dimension>& GetLeft() { return point_l_; }
@@ -45,15 +43,19 @@ class Segment {
 
   /// segment calc
   bool Contains(const Point<T, Dimension>& point) const;
+  bool Contains(const Void<T, Dimension>& object) const override;
 
   T SquaredDistance(const Point<T, Dimension>& point) const;
   T SquaredDistance(const Segment<T, Dimension>& segment) const;
+  T SquaredDistance(const Void<T, Dimension>& object) const override;
 
   T Distance(const Point<T, Dimension>& point) const;
   T Distance(const Segment<T, Dimension>& segment) const;
+  T Distance(const Void<T, Dimension>& object) const override;
 
-  GeometryEntity Intersection(const Point<T, Dimension>& point) const;
-  GeometryEntity Intersection(const Segment<T, Dimension>& segment) const;
+  std::unique_ptr<Void<T, Dimension>> Intersection(const Point<T, Dimension>& point) const;
+  std::unique_ptr<Void<T, Dimension>> Intersection(const Segment<T, Dimension>& segment) const;
+  std::unique_ptr<Void<T, Dimension>> Intersection(const Void<T, Dimension>& object) const override;
 
   Point<T, Dimension> Projection(const Point<T, Dimension>& point) const;
   Segment<T, Dimension> Projection(const Segment<T, Dimension>& segment) const;
@@ -61,8 +63,10 @@ class Segment {
   bool Intersects(const BoundaryBox<T, Dimension>& box) const;
   bool Inside(const BoundaryBox<T, Dimension>& box) const;
 
+  void ApplyTransform(const Transform<T, Dimension>& transform) override;
+
   template <size_t OutputDimension>
-  Segment<T, OutputDimension> ApplyTransform(const Transform<T, Dimension, OutputDimension>& transform) const;
+  Segment<T, OutputDimension> Transformed(const Transform<T, Dimension, OutputDimension>& transform) const;
 
  private:
   inline std::pair<T, T> FindBoxIntersection(const BoundaryBox<T, Dimension>& box) const;
@@ -117,6 +121,21 @@ bool Segment<T, Dimension>::Contains(const Point<T, Dimension>& point) const {
 }
 
 template <typename T, size_t Dimension>
+bool Segment<T, Dimension>::Contains(const Void<T, Dimension>& object) const {
+  switch (object.GetType()) {
+    case Entity::Point: {
+      return Contains(static_cast<const Point<T, Dimension>&>(object));
+    }
+    case Entity::Segment: {
+      return static_cast<const Segment<T, Dimension>&>(object) == *this;
+    }
+    default: {
+      return false;
+    }
+  }
+}
+
+template <typename T, size_t Dimension>
 T Segment<T, Dimension>::SquaredDistance(const Point<T, Dimension>& point) const {
   Vector<T, Dimension> dir = GetDirection();
   if ((point - point_l_) * dir >= 0 &&
@@ -157,15 +176,45 @@ T Segment<T, Dimension>::Distance(const Segment<T, Dimension>& segment) const {
 }
 
 template <typename T, size_t Dimension>
-GeometryEntity Segment<T, Dimension>::Intersection(const Point<T, Dimension>& point) const {
-  if (Contains(point)) {
-    return GeometryEntity(point);
+T Segment<T, Dimension>::SquaredDistance(const Void<T, Dimension>& object) const {
+  switch (object.GetType()) {
+    case Entity::Point: {
+      return SquaredDistance(static_cast<const Point<T, Dimension>&>(object));
+    }
+    case Entity::Segment: {
+      return SquaredDistance(static_cast<const Segment<T, Dimension>&>(object));
+    }
+    default: {
+      return object.SquaredDistance(*this);
+    }
   }
-  return GeometryEntity(Void<T, Dimension>());
 }
 
 template <typename T, size_t Dimension>
-GeometryEntity Segment<T, Dimension>::Intersection(const Segment<T, Dimension>& segment) const {
+T Segment<T, Dimension>::Distance(const Void<T, Dimension>& object) const {
+  switch (object.GetType()) {
+    case Entity::Point: {
+      return Distance(static_cast<const Point<T, Dimension>&>(object));
+    }
+    case Entity::Segment: {
+      return Distance(static_cast<const Segment<T, Dimension>&>(object));
+    }
+    default: {
+      return object.Distance(*this);
+    }
+  }
+}
+
+template <typename T, size_t Dimension>
+std::unique_ptr<Void<T, Dimension>> Segment<T, Dimension>::Intersection(const Point<T, Dimension>& point) const {
+  if (Contains(point)) {
+    return std::make_unique<Point<T, Dimension>>(point);
+  }
+  return std::make_unique<Void<T, Dimension>>();
+}
+
+template <typename T, size_t Dimension>
+std::unique_ptr<Void<T, Dimension>> Segment<T, Dimension>::Intersection(const Segment<T, Dimension>& segment) const {
   Vector<T, Dimension> r = segment.point_l_ - point_l_;
   Vector<T, Dimension> a1 = GetDirection();
   Vector<T, Dimension> a2 = segment.GetDirection();
@@ -175,35 +224,50 @@ GeometryEntity Segment<T, Dimension>::Intersection(const Segment<T, Dimension>& 
   if (Comparator<T>::Equal(len1 * len2, dot * dot)) { /// REFACTOR:))))))
     if (Contains(segment.GetLeft())) {
       if (Contains(segment.GetRight())) {
-        return GeometryEntity(segment);
+        return std::make_unique<Segment<T, Dimension>>(segment);
       }
       if (segment.Contains(GetLeft())) {
-        return MakeGeometryEntity<Segment<T, Dimension>>(segment.GetLeft(), GetLeft());
+        return std::make_unique<Segment<T, Dimension>>(segment.GetLeft(), GetLeft());
       }
       if (segment.Contains(GetRight())) {
-        return MakeGeometryEntity<Segment<T, Dimension>>(segment.GetLeft(), GetRight());
+        return std::make_unique<Segment<T, Dimension>>(segment.GetLeft(), GetRight());
       }
     }
     if (Contains(segment.GetRight())) {
       if (segment.Contains(GetLeft())) {
-        return MakeGeometryEntity<Segment<T, Dimension>>(segment.GetRight(), GetLeft());
+        return std::make_unique<Segment<T, Dimension>>(segment.GetRight(), GetLeft());
       }
       if (segment.Contains(GetRight())) {
-        return MakeGeometryEntity<Segment<T, Dimension>>(segment.GetRight(), GetRight());
+        return std::make_unique<Segment<T, Dimension>>(segment.GetRight(), GetRight());
       }
     }
     if (segment.Contains(GetLeft()) && segment.Contains(GetRight())) {
-      return MakeGeometryEntity<Segment<T, Dimension>>(GetLeft(), GetRight());
+      return std::make_unique<Segment<T, Dimension>>(GetLeft(), GetRight());
     }
   } else {
     T t1 = -(dot * a2 * r - len2 * a1 * r) / (len1 * len2 - dot * dot);
     T t2 = (dot * a1 * r - len1 * a2 * r) / (len1 * len2 - dot * dot);
     if (t1 >= 0 && t1 <= 1 && t2 >= 0 && t2 <= 1
         && Comparator<T>::IsZero(GetPoint(t1).Distance(segment.GetPoint(t2)))) {
-      return GeometryEntity(GetPoint(t1));
+      return std::make_unique<Point<T, Dimension>>(GetPoint(t1));
     }
   }
-  return MakeGeometryEntity<Void<T, Dimension>>();
+  return std::make_unique<Void<T, Dimension>>();
+}
+
+template <typename T, size_t Dimension>
+std::unique_ptr<Void<T, Dimension>> Segment<T, Dimension>::Intersection(const Void<T, Dimension>& object) const {
+  switch (object.GetType()) {
+    case Entity::Point: {
+      return Intersection(static_cast<const Point<T, Dimension>&>(object));
+    }
+    case Entity::Segment: {
+      return Intersection(static_cast<const Segment<T, Dimension>&>(object));
+    }
+    default: {
+      return object.Intersection(*this);
+    }
+  }
 }
 
 template <typename T, size_t Dimension>
@@ -239,10 +303,16 @@ bool Segment<T, Dimension>::Inside(const BoundaryBox<T, Dimension>& box) const {
 }
 
 template <typename T, size_t Dimension>
+void Segment<T, Dimension>::ApplyTransform(const Transform<T, Dimension>& transform) {
+  point_l_.ApplyTransform(transform);
+  point_r_.ApplyTransform(transform);
+}
+
+template <typename T, size_t Dimension>
 template <size_t OutputDimension>
-Segment<T, OutputDimension> Segment<T, Dimension>::ApplyTransform(
+Segment<T, OutputDimension> Segment<T, Dimension>::Transformed(
     const Transform<T, Dimension, OutputDimension>& transform) const {
-  return {transform(point_l_), transform(point_r_)};
+  return {point_l_.Transformed(), point_r_.Transformed()};
 }
 
 template <typename T, size_t Dimension>

@@ -2,15 +2,14 @@
 // Created by Artem Novikov on 16.05.2022.
 //
 
-#include "GeometricEntity.h"
+#ifndef GEOMETRY_GEOMETRY_LINE_H_
+#define GEOMETRY_GEOMETRY_LINE_H_
+
 #include "Void.h"
 #include "Vector.h"
 #include "Point.h"
 #include "Segment.h"
 #include "BoundaryBox.h"
-
-#ifndef GEOMETRY_GEOMETRY_LINE_H_
-#define GEOMETRY_GEOMETRY_LINE_H_
 
 enum class LineRelationship {
   Parallel,
@@ -20,7 +19,7 @@ enum class LineRelationship {
 };
 
 template <typename T, size_t Dimension>
-class Line {
+class Line : public Void<T, Dimension> {
  public:
   /// construction
   Line() = default;
@@ -32,8 +31,7 @@ class Line {
   Line& operator=(Line&& other) noexcept = default;
 
   /// setters and getters
-  Entity GetType() const { return Entity::Line; }
-  size_t GetDimension() const { return Dimension; }
+  [[nodiscard]] Entity GetType() const override { return Entity::Line; }
   Point<T, Dimension> GetPoint(T t) const { return origin_ + direction_ * t; }
   Point<T, Dimension> operator[](T t) const { return origin_ + direction_ * t; }
   Point<T, Dimension>& GetOrigin() { return origin_; }
@@ -44,16 +42,22 @@ class Line {
   /// line calc
   void Normalise();
   bool Contains(const Point<T, Dimension>& point) const;
+  bool Contains(const Segment<T, Dimension>& segment) const;
+  bool Contains(const Void<T, Dimension>& object) const override;
+
   T SquaredDistance(const Point<T, Dimension>& point) const;
   T Distance(const Point<T, Dimension>& point) const;
   T SquaredDistance(const Segment<T, Dimension>& segment) const;
   T Distance(const Segment<T, Dimension>& segment) const;
   T SquaredDistance(const Line<T, Dimension>& line) const;
   T Distance(const Line<T, Dimension>& line) const;
+  T SquaredDistance(const Void<T, Dimension>& object) const override;
+  T Distance(const Void<T, Dimension>& object) const override;
 
-  GeometryEntity Intersection(const Point<T, Dimension>& point) const;
-  GeometryEntity Intersection(const Segment<T, Dimension>& segment) const;
-  GeometryEntity Intersection(const Line<T, Dimension>& line) const;
+  std::unique_ptr<Void<T, Dimension>> Intersection(const Point<T, Dimension>& point) const;
+  std::unique_ptr<Void<T, Dimension>> Intersection(const Segment<T, Dimension>& segment) const;
+  std::unique_ptr<Void<T, Dimension>> Intersection(const Line<T, Dimension>& line) const;
+  std::unique_ptr<Void<T, Dimension>> Intersection(const Void<T, Dimension>& object) const override;
 
   template <bool Temp = Dimension == 2, typename = std::enable_if_t<Temp>>
   Point2<T> Projection(const Point2<T>& point, const Vector2<T>& a) const;
@@ -66,7 +70,9 @@ class Line {
   bool Intersects(const BoundaryBox<T, Dimension>& box) const;
 
   template <size_t OutputDimension>
-  Line<T, OutputDimension> ApplyTransform(const Transform<T, Dimension, OutputDimension>& transform) const;
+  Line<T, OutputDimension> Transformed(const Transform<T, Dimension, OutputDimension>& transform) const;
+
+  void ApplyTransform(const Transform<T, Dimension>& transform) override;
 
  private:
   Point<T, Dimension> origin_;
@@ -119,6 +125,29 @@ bool Line<T, Dimension>::Contains(const Point<T, Dimension>& point) const {
 }
 
 template <typename T, size_t Dimension>
+bool Line<T, Dimension>::Contains(const Segment<T, Dimension>& segment) const {
+  return Contains(segment.GetLeft()) && Contains(segment.GetRight());
+}
+
+template <typename T, size_t Dimension>
+bool Line<T, Dimension>::Contains(const Void<T, Dimension>& object) const {
+  switch (object.GetType()) {
+    case Entity::Point: {
+      return Contains(static_cast<const Point<T, Dimension>&>(object));
+    }
+    case Entity::Segment: {
+      return Contains(static_cast<const Segment<T, Dimension>&>(object));
+    }
+    case Entity::Line: {
+      return static_cast<const Line<T, Dimension>&>(object) == *this;
+    }
+    default : {
+      return false;
+    }
+  }
+}
+
+template <typename T, size_t Dimension>
 T Line<T, Dimension>::SquaredDistance(const Point<T, Dimension>& point) const {
   T t = (point - origin_) * direction_ / direction_.SquaredLength();
   return point.SquaredDistance(GetPoint(t));
@@ -168,20 +197,50 @@ T Line<T, Dimension>::SquaredDistance(const Line<T, Dimension>& line) const {
 }
 
 template <typename T, size_t Dimension>
+T Line<T, Dimension>::Distance(const Void<T, Dimension>& object) const {
+  switch (object.GetType()) {
+    case Entity::Point: {
+      return Distance(static_cast<const Point<T, Dimension>&>(object));
+    }
+    case Entity::Segment: {
+      return Distance(static_cast<const Segment<T, Dimension>&>(object));
+    }
+    default: {
+      return object.Distance(*this);
+    }
+  }
+}
+
+template <typename T, size_t Dimension>
+T Line<T, Dimension>::SquaredDistance(const Void<T, Dimension>& object) const {
+  switch (object.GetType()) {
+    case Entity::Point: {
+      return SquaredDistance(static_cast<const Point<T, Dimension>&>(object));
+    }
+    case Entity::Segment: {
+      return SquaredDistance(static_cast<const Segment<T, Dimension>&>(object));
+    }
+    default: {
+      return object.SquaredDistance(*this);
+    }
+  }
+}
+
+template <typename T, size_t Dimension>
 T Line<T, Dimension>::Distance(const Line<T, Dimension>& line) const {
   return std::sqrt(SquaredDistance(line));
 }
 
 template <typename T, size_t Dimension>
-GeometryEntity Line<T, Dimension>::Intersection(const Point<T, Dimension>& point) const {
+std::unique_ptr<Void<T, Dimension>> Line<T, Dimension>::Intersection(const Point<T, Dimension>& point) const {
   if (Contains(point)) {
-    return GeometryEntity(point);
+    return std::make_unique<Point<T, Dimension>>(point);
   }
-  return MakeGeometryEntity<Void<T, Dimension>>();
+  return std::make_unique<Void<T, Dimension>>();
 }
 
 template <typename T, size_t Dimension>
-GeometryEntity Line<T, Dimension>::Intersection(const Segment<T, Dimension>& segment) const {
+std::unique_ptr<Void<T, Dimension>> Line<T, Dimension>::Intersection(const Segment<T, Dimension>& segment) const {
   Vector<T, Dimension> delta_r = segment.GetLeft() - origin_;
   Vector<T, Dimension> segment_dir = segment.GetRight() - segment.GetLeft();
   T dot = segment_dir * direction_;
@@ -190,31 +249,49 @@ GeometryEntity Line<T, Dimension>::Intersection(const Segment<T, Dimension>& seg
   if (!Comparator<T>::Equal(len1 * len2, dot * dot)) {
     T t = (dot * direction_ * delta_r - len1 * segment_dir * delta_r) / (len1 * len2 - dot * dot);
     if (t >= 0 && t <= 1) {
-      return GeometryEntity(segment.GetPoint(t));
+      return std::make_unique<Point<T, Dimension>>(segment.GetPoint(t));
     }
   }
   if (Contains(segment.GetLeft()) && Contains(segment.GetRight())) {
-    return GeometryEntity(segment);
+    return std::make_unique<Segment<T, Dimension>>(segment);
   }
-  return MakeGeometryEntity<Void<T, Dimension>>();
+  return std::make_unique<Void<T, Dimension>>();
 }
 
 template <typename T, size_t Dimension>
-GeometryEntity Line<T, Dimension>::Intersection(const Line<T, Dimension>& line) const {
+std::unique_ptr<Void<T, Dimension>> Line<T, Dimension>::Intersection(const Line<T, Dimension>& line) const {
   if (FindRelationship(direction_, line.direction_) == VectorRelationship::Parallel) {
     if (Contains(line.origin_)) {
-      return GeometryEntity(line);
+      return std::make_unique<Line<T, Dimension>>(line);
     }
-    return MakeGeometryEntity<Void<T, Dimension>>();
+    return std::make_unique<Void<T, Dimension>>();
   }
   T dot = direction_ * line.direction_;
   Vector<T, Dimension> delta = origin_ - line.origin_;
   T t = (dot * delta * direction_ - delta * line.direction_ * direction_.SquaredLength()) /
       (direction_.SquaredLength() * line.direction_.SquaredLength() - dot * dot);
   if (Comparator<T>::IsZero(line.Distance(GetPoint(t)))) {
-    return GeometryEntity(GetPoint(t));
+    return std::make_unique<Point<T, Dimension>>(GetPoint(t));
   }
-  return MakeGeometryEntity<Void<T, Dimension>>();
+  return std::make_unique<Void<T, Dimension>>();
+}
+
+template <typename T, size_t Dimension>
+std::unique_ptr<Void<T, Dimension>> Line<T, Dimension>::Intersection(const Void<T, Dimension>& object) const {
+  switch (object.GetType()) {
+    case Entity::Point: {
+      return Intersection(static_cast<const Point<T, Dimension>&>(object));
+    }
+    case Entity::Segment: {
+      return Intersection(static_cast<const Segment<T, Dimension>&>(object));
+    }
+    case Entity::Line: {
+      return Intersection(static_cast<const Line<T, Dimension>&>(object));
+    }
+    default: {
+      return object.Intersection(*this);
+    }
+  }
 }
 
 template <typename T, size_t Dimension>
@@ -267,9 +344,15 @@ bool Line<T, Dimension>::Intersects(const BoundaryBox<T, Dimension>& box) const 
 
 template <typename T, size_t Dimension>
 template <size_t OutputDimension>
-Line<T, OutputDimension> Line<T, Dimension>::ApplyTransform(
+Line<T, OutputDimension> Line<T, Dimension>::Transformed(
     const Transform<T, Dimension, OutputDimension>& transform) const {
-  return {transform(origin_), transform(direction_)};
+  return {origin_.Transformed(), transform(direction_)};
+}
+
+template <typename T, size_t Dimension>
+void Line<T, Dimension>::ApplyTransform(const Transform<T, Dimension>& transform) {
+  origin_.ApplyTransform(transform);
+  direction_ = transform(direction_);
 }
 
 template <typename T, size_t Dimension>

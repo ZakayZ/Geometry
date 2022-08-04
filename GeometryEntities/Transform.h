@@ -48,6 +48,20 @@ class Transform {
   Vector<T, OutputDimension> shift_;
 };
 
+template <typename T>
+using Transform2 = Transform<T, 2>;
+
+using Transform2i = Transform2<int>;
+using Transform2f = Transform2<float>;
+using Transform2d = Transform2<double>;
+
+template <typename T>
+using Transform3 = Transform<T, 3>;
+
+using Transform3i = Transform3<int>;
+using Transform3f = Transform3<float>;
+using Transform3d = Transform3<double>;
+
 template <typename T, size_t InputDimension, size_t TransitDimension, size_t OutputDimension>
 Transform<T, InputDimension, OutputDimension> operator*(const Transform<T, TransitDimension, OutputDimension>& a,
                                                         const Transform<T, InputDimension, TransitDimension>& b);
@@ -64,7 +78,7 @@ template <typename T, size_t Dimension>
 Transform<T, Dimension> Inverted(const Transform<T, Dimension>& transform);
 
 template <typename T, size_t Dimension>
-Transform<T, Dimension> Shift(const Vector<T, Dimension>& shift);
+Transform<T, Dimension> Translate(const Vector<T, Dimension>& shift);
 
 template <typename T, size_t Dimension>
 Transform<T, Dimension> Flip(size_t direction);
@@ -93,7 +107,7 @@ Vector<T, OutputDimension> Transform<T, InputDimension, OutputDimension>::operat
 template <typename T, size_t InputDimension, size_t OutputDimension>
 template <typename Type>
 decltype(auto) Transform<T, InputDimension, OutputDimension>::operator()(const Type& value) const {
-  return value.ApplyTransform(*this);
+  return value.Transformed(*this);
 }
 
 template <typename T, size_t InputDimension, size_t OutputDimension>
@@ -172,8 +186,8 @@ Transform<T, Dimension> Inverted(const Transform<T, Dimension>& transform) {
 }
 
 template <typename T, size_t Dimension>
-Transform<T, Dimension> Shift(const Vector<T, Dimension>& shift) {
-  return Transform(Identity<Dimension>(), shift);
+Transform<T, Dimension> Translate(const Vector<T, Dimension>& shift) {
+  return Transform(Identity<T, Dimension>(), shift);
 }
 
 template <typename T, size_t Dimension>

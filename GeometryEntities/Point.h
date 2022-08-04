@@ -2,14 +2,13 @@
 // Created by Artem Novikov on 16.05.2022.
 //
 
+#ifndef GEOMETRY_GEOMETRY_POINT_H_
+#define GEOMETRY_GEOMETRY_POINT_H_
+
 #include <array>
-#include "GeometricEntity.h"
 #include "Void.h"
 #include "Vector.h"
 #include "Transform.h"
-
-#ifndef GEOMETRY_GEOMETRY_POINT_H_
-#define GEOMETRY_GEOMETRY_POINT_H_
 
 enum class PointRelationship {
   Identical,
@@ -17,10 +16,10 @@ enum class PointRelationship {
 };
 
 template <typename T, size_t Dimension>
-class Point : public Vector<T, Dimension> {
+class Point : public Void<T, Dimension>, public Vector<T, Dimension> {
  public:
   /// construction
-  Point() {}
+  Point() = default;
   template <typename... Args>
   Point(Args&& ... args);
   template <typename U, template <typename, typename...> class Container, typename... Args,
@@ -35,19 +34,24 @@ class Point : public Vector<T, Dimension> {
   Point& operator=(Point&& other) noexcept = default;
 
   /// getters and setters
-  Entity GetType() const { return Entity::Point; }
-  size_t GetDimension() const { return Dimension; }
+  [[nodiscard]] Entity GetType() const override { return Entity::Point; }
 
   /// calc
+  bool Contains(const Void<T, Dimension>& object) const override;
 
   T SquaredDistance(const Point<T, Dimension>& point) const;
+  T SquaredDistance(const Void<T, Dimension>& object) const override;
 
   T Distance(const Point<T, Dimension>& point) const;
+  T Distance(const Void<T, Dimension>& object) const override;
 
-  GeometryEntity Intersection(const Point<T, Dimension>& point) const;
+  std::unique_ptr<Void<T, Dimension>> Intersection(const Point<T, Dimension>& point) const;
+  std::unique_ptr<Void<T, Dimension>> Intersection(const Void<T, Dimension>& object) const override;
 
   template <size_t OutputDimension>
-  Point<T, OutputDimension> ApplyTransform(const Transform<T, Dimension, OutputDimension>& transform) const;
+  Point<T, OutputDimension> Transformed(const Transform<T, Dimension, OutputDimension>& transform) const;
+
+  void ApplyTransform(const Transform<T, Dimension>& transform) override;
 };
 
 template <typename T>
@@ -88,8 +92,28 @@ template <typename T, size_t Dimension>
 Point<T, Dimension>::Point(std::initializer_list<T> list) : Vector<T, Dimension>(list) {}
 
 template <typename T, size_t Dimension>
+bool Point<T, Dimension>::Contains(const Void<T, Dimension>& object) const {
+  switch (object.GetType()) {
+    case Entity::Point: {
+      return static_cast<const Point<T, Dimension>&>(object) == *this;
+    }
+    default: {
+      return false;
+    }
+  }
+}
+
+template <typename T, size_t Dimension>
 T Point<T, Dimension>::SquaredDistance(const Point<T, Dimension>& point) const {
   return (point - *this).SquaredLength();
+}
+
+template <typename T, size_t Dimension>
+T Point<T, Dimension>::SquaredDistance(const Void<T, Dimension>& object) const {
+  switch (object.GetType()) {
+    case Entity::Point: { return SquaredDistance(static_cast<const Point<T, Dimension>&>(object)); }
+    default: { return object.SquaredDistance(*this); }
+  }
 }
 
 template <typename T, size_t Dimension>
@@ -98,18 +122,39 @@ T Point<T, Dimension>::Distance(const Point<T, Dimension>& point) const {
 }
 
 template <typename T, size_t Dimension>
-GeometryEntity Point<T, Dimension>::Intersection(const Point<T, Dimension>& point) const {
-  if (point == *this) {
-    return GeometryEntity(point);
+T Point<T, Dimension>::Distance(const Void<T, Dimension>& object) const {
+  switch (object.GetType()) {
+    case Entity::Point: { return Distance(static_cast<const Point<T, Dimension>&>(object)); }
+    default: { return object.Distance(*this); }
   }
-  return MakeGeometryEntity<Void<T, Dimension>>();
+}
+
+template <typename T, size_t Dimension>
+std::unique_ptr<Void<T, Dimension>> Point<T, Dimension>::Intersection(const Point<T, Dimension>& point) const {
+  if (point == *this) {
+    return std::make_unique<Void<T, Dimension>>(point);
+  }
+  return std::make_unique<Void<T, Dimension>>();
+}
+
+template <typename T, size_t Dimension>
+std::unique_ptr<Void<T, Dimension>> Point<T, Dimension>::Intersection(const Void<T, Dimension>& object) const {
+  switch (object.GetType()) {
+    case Entity::Point: { return Intersection(static_cast<const Point<T, Dimension>&>(object)); }
+    default: { return object.Intersection(*this); }
+  }
 }
 
 template <typename T, size_t Dimension>
 template <size_t OutputDimension>
-Point<T, OutputDimension> Point<T, Dimension>::ApplyTransform(
+Point<T, OutputDimension> Point<T, Dimension>::Transformed(
     const Transform<T, Dimension, OutputDimension>& transform) const {
-  return transform.GetMatrix() * (*this) + transform.GetShift();
+  return transform.GetMatrix() * static_cast<const Vector<T, Dimension>&>(*this) + transform.GetShift();
+}
+
+template <typename T, size_t Dimension>
+void Point<T, Dimension>::ApplyTransform(const Transform<T, Dimension>& transform) {
+  *this = Transformed(transform);
 }
 
 template <typename T, size_t Dimension>

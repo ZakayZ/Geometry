@@ -2,7 +2,9 @@
 // Created by Artem Novikov on 24.06.2022.
 //
 
-#include "GeometricEntity.h"
+#ifndef GEOMETRY_GEOMETRY_PLANE_H_
+#define GEOMETRY_GEOMETRY_PLANE_H_
+
 #include "Void.h"
 #include "Vector.h"
 #include "Point.h"
@@ -11,9 +13,6 @@
 #include "BoundaryBox.h"
 #include "Transform.h"
 
-#ifndef GEOMETRY_GEOMETRY_PLANE_H_
-#define GEOMETRY_GEOMETRY_PLANE_H_
-
 enum class PlaneRelationship {
   Parallel,
   Intersecting,
@@ -21,7 +20,7 @@ enum class PlaneRelationship {
 };
 
 template <typename T>
-class Plane {
+class Plane : public Void3<T> {
  public:
   /// construction
   Plane() = default;
@@ -33,8 +32,7 @@ class Plane {
   Plane& operator=(Plane&& other) noexcept = default;
 
   /// setters and getters
-  Entity GetType() const { return Entity::Plane; }
-  size_t GetDimension() const { return 3; }
+  [[nodiscard]] Entity GetType() const override { return Entity::Plane; }
   Point3<T> GetPoint(T x, T y) const { return origin_ + abscissa_ * x + ordinate_ * y; }
   Point3<T>& GetOrigin() { return origin_; }
   const Point3<T>& GetOrigin() const { return origin_; }
@@ -49,21 +47,25 @@ class Plane {
   bool Contains(const Point3<T>& point) const;
   bool Contains(const Segment3<T>& segment) const;
   bool Contains(const Line3<T>& line) const;
+  bool Contains(const Void3<T>& object) const override;
 
   T SquaredDistance(const Point3<T>& point) const;
   T SquaredDistance(const Segment3<T>& segment) const;
   T SquaredDistance(const Line3<T>& line) const;
   T SquaredDistance(const Plane<T>& plane) const;
+  T SquaredDistance(const Void3<T>& object) const override;
 
   T Distance(const Point3<T>& point) const;
   T Distance(const Segment3<T>& segment) const;
   T Distance(const Line3<T>& line) const;
   T Distance(const Plane<T>& plane) const;
+  T Distance(const Void3<T>& object) const override;
 
-  GeometryEntity Intersection(const Point3<T>& point) const;
-  GeometryEntity Intersection(const Segment3<T>& segment) const;
-  GeometryEntity Intersection(const Line3<T>& line) const;
-  GeometryEntity Intersection(const Plane<T>& plane) const;
+  std::unique_ptr<Void3<T>> Intersection(const Point3<T>& point) const;
+  std::unique_ptr<Void3<T>> Intersection(const Segment3<T>& segment) const;
+  std::unique_ptr<Void3<T>> Intersection(const Line3<T>& line) const;
+  std::unique_ptr<Void3<T>> Intersection(const Plane<T>& plane) const;
+  std::unique_ptr<Void3<T>> Intersection(const Void3<T>& object) const override;
 
   Point3<T> Projection(const Point3<T>& point, const Vector3<T>& a) const;
   Segment3<T> Projection(const Segment3<T>& segment, const Vector3<T>& a) const;
@@ -75,14 +77,17 @@ class Plane {
 
   bool Intersects(const BoundaryBox3<T>& box) const;
 
-  template <size_t OutputDimension>
-  Segment<T, OutputDimension> ApplyTransform(const Transform<T, 3, OutputDimension>& transform) const;
+  void ApplyTransform(const Transform<T, 3>& transform) override;
 
  private:
   Point3<T> origin_;
   Vector3<T> abscissa_;
   Vector3<T> ordinate_;
 };
+
+using Planei = Plane<int>;
+using Planef = Plane<float>;
+using Planed = Plane<double>;
 
 /// Relationships
 
@@ -126,11 +131,34 @@ bool Plane<T>::Contains(const Line3<T>& line) const {
   return Comparator<T>::IsZero(MixedProduct(line.GetOrigin() - origin_, abscissa_, ordinate_)) &&
       Comparator<T>::IsZero(MixedProduct(line.GetDirection() - origin_, abscissa_, ordinate_));
 }
+
+template <typename T>
+bool Plane<T>::Contains(const Void3<T>& object) const {
+  switch (object.GetType()) {
+    case Entity::Point: {
+      return Contains(static_cast<const Point3<T>&>(object));
+    }
+    case Entity::Segment: {
+      return Contains(static_cast<const Segment3<T>&>(object));
+    }
+    case Entity::Line: {
+      return Contains(static_cast<const Line3<T>&>(object));
+    }
+    case Entity::Plane: {
+      return static_cast<const Plane<T>&>(object) == *this;
+    }
+    default : {
+      return false;
+    }
+  }
+}
+
 template <typename T>
 T Plane<T>::SquaredDistance(const Point3<T>& point) const {
   return std::pow(MixedProduct(point - origin_, abscissa_, ordinate_), 2)
       / CrossProduct(abscissa_, ordinate_).SquaredLength();
 }
+
 template <typename T>
 T Plane<T>::Distance(const Point3<T>& point) const {
   return std::sqrt(SquaredDistance(point));
@@ -177,46 +205,88 @@ T Plane<T>::Distance(const Plane<T>& plane) const {
 }
 
 template <typename T>
-GeometryEntity Plane<T>::Intersection(const Point3<T>& point) const {
-  if (Contains(point)) {
-    return GeometryEntity(point);
+T Plane<T>::SquaredDistance(const Void3<T>& object) const {
+  switch (object.GetType()) {
+    case Entity::Point: {
+      return SquaredDistance(static_cast<const Point3<T>&>(object));
+    }
+    case Entity::Segment: {
+      return SquaredDistance(static_cast<const Segment3<T>&>(object));
+    }
+    case Entity::Line: {
+      return SquaredDistance(static_cast<const Line3<T>&>(object));
+    }
+    case Entity::Plane: {
+      return SquaredDistance(static_cast<const Plane<T>&>(object));
+    }
+    default : {
+      return object.SquaredDistance(*this);
+    }
   }
-  return MakeGeometryEntity<Void3<T>>();
 }
 
 template <typename T>
-GeometryEntity Plane<T>::Intersection(const Segment3<T>& segment) const {
+T Plane<T>::Distance(const Void3<T>& object) const {
+  switch (object.GetType()) {
+    case Entity::Point: {
+      return Distance(static_cast<const Point3<T>&>(object));
+    }
+    case Entity::Segment: {
+      return Distance(static_cast<const Segment3<T>&>(object));
+    }
+    case Entity::Line: {
+      return Distance(static_cast<const Line3<T>&>(object));
+    }
+    case Entity::Plane: {
+      return Distance(static_cast<const Plane<T>&>(object));
+    }
+    default : {
+      return object.Distance(*this);
+    }
+  }
+}
+
+template <typename T>
+std::unique_ptr<Void3<T>> Plane<T>::Intersection(const Point3<T>& point) const {
+  if (Contains(point)) {
+    return std::make_unique<Point3<T>>(point);
+  }
+  return std::make_unique<Void3<T>>();
+}
+
+template <typename T>
+std::unique_ptr<Void3<T>> Plane<T>::Intersection(const Segment3<T>& segment) const {
   T m1 = MixedProduct(segment.GetRight() - origin_, abscissa_, ordinate_);
   T m2 = MixedProduct(segment.GetLeft() - origin_, abscissa_, ordinate_);
   if (Comparator<T>::IsZero(m1) && Comparator<T>::IsZero(m2)) {
-    return GeometryEntity(segment);
+    return std::make_unique<Segment3<T>>(segment);
   }
   if (m1 * m2 <= 0) {
     T t = MixedProduct(origin_ - segment.GetLeft(), abscissa_, ordinate_)
         / MixedProduct(segment.GetDirection(), abscissa_, ordinate_);
-    return GeometryEntity(segment.GetPoint(t));
+    return std::make_unique<Point3<T>>(segment.GetPoint(t));
   }
-  return MakeGeometryEntity<Void3<T>>();
+  return std::make_unique<Void3<T>>();
 }
 
 template <typename T>
-GeometryEntity Plane<T>::Intersection(const Line3<T>& line) const {
+std::unique_ptr<Void3<T>> Plane<T>::Intersection(const Line3<T>& line) const {
   if (Contains(line.GetOrigin())) {
     if (Comparator<T>::IsZero(MixedProduct(line.GetDirection(), abscissa_, ordinate_))) {
-      return GeometryEntity(line);
+      return std::make_unique<Line3<T>>(line);
     }
-    return GeometryEntity(line.GetOrigin());
+    return std::make_unique<Point3<T>>(line.GetOrigin());
   }
   if (Comparator<T>::IsZero(MixedProduct(line.GetDirection(), abscissa_, ordinate_))) {
-    return MakeGeometryEntity<Void3<T>>();
+    return std::make_unique<Void3<T>>();
   }
   T t = MixedProduct(origin_ - line.GetOrigin(), abscissa_, ordinate_)
       / MixedProduct(line.GetDirection(), abscissa_, ordinate_);
-  return GeometryEntity(line.GetPoint(t));
+  return std::make_unique<Point3<T>>(line.GetPoint(t));
 }
 
 template <typename T>
-GeometryEntity Plane<T>::Intersection(const Plane<T>& plane) const {
+std::unique_ptr<Void3<T>> Plane<T>::Intersection(const Plane<T>& plane) const {
   switch (FindRelationship(*this, plane)) {
     case PlaneRelationship::Intersecting: {
       Vector3<T> dir = CrossProduct(CrossProduct(abscissa_, ordinate_), CrossProduct(plane.abscissa_, plane.ordinate_));
@@ -226,10 +296,31 @@ GeometryEntity Plane<T>::Intersection(const Plane<T>& plane) const {
       }
       T t = MixedProduct(origin_ - l.GetOrigin(), abscissa_, ordinate_)
           / MixedProduct(l.GetDirection(), abscissa_, ordinate_);
-      return MakeGeometryEntity<Line3<T>>(l.GetPoint(t), std::move(dir));
+      return std::make_unique<Line3<T>>(l.GetPoint(t), std::move(dir));
     }
-    case PlaneRelationship::Identical: { return GeometryEntity(plane); }
-    case PlaneRelationship::Parallel: { return MakeGeometryEntity<Void3<T>>(); }
+    case PlaneRelationship::Identical: { return std::make_unique<Plane<T>>(plane); }
+    case PlaneRelationship::Parallel: { return std::make_unique<Void3<T >>(); }
+  }
+}
+
+template <typename T>
+std::unique_ptr<Void3<T>> Plane<T>::Intersection(const Void3<T>& object) const {
+  switch (object.GetType()) {
+    case Entity::Point: {
+      return Intersection(static_cast<const Point3<T>&>(object));
+    }
+    case Entity::Segment: {
+      return Intersection(static_cast<const Segment3<T>&>(object));
+    }
+    case Entity::Line: {
+      return Intersection(static_cast<const Line3<T>&>(object));
+    }
+    case Entity::Plane: {
+      return Intersection(static_cast<const Plane<T>&>(object));
+    }
+    default : {
+      return object.Intersection(*this);
+    }
   }
 }
 
@@ -292,9 +383,10 @@ bool Plane<T>::Intersects(const BoundaryBox3<T>& box) const {
 }
 
 template <typename T>
-template <size_t OutputDimension>
-Segment<T, OutputDimension> Plane<T>::ApplyTransform(const Transform<T, 3, OutputDimension>& transform) const {
-  return {transform(origin_), transform(abscissa_), transform(ordinate_)};
+void Plane<T>::ApplyTransform(const Transform<T, 3>& transform) {
+  origin_.ApplyTransform(transform);
+  abscissa_ = transform(abscissa_);
+  ordinate_ = transform(ordinate_);
 }
 
 template <typename T>

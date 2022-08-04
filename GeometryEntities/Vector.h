@@ -2,14 +2,14 @@
 // Created by Artem Novikov on 16.05.2022.
 //
 
-#include <iostream>
-#include <vector>
-#include <cmath>
-#include "is_iterable.h"
-#include "Data.h"
-
 #ifndef GEOMETRY_GEOMETRY_VECTOR_H_
 #define GEOMETRY_GEOMETRY_VECTOR_H_
+
+#include <iostream>
+#include <vector>
+#include <math.h>
+#include "is_iterable.h"
+#include "Data.h"
 
 enum class VectorRelationship {
   Parallel,
@@ -22,7 +22,7 @@ template <typename T, size_t Dimension>
 class Vector {
  public:
   /// construction
-  Vector() = default;
+  Vector();
 
   Vector(const Data<T, Dimension>& data);
   template <typename U>
@@ -129,7 +129,7 @@ Vector<T, Dimension> operator*(const U& scalar, const Vector<T, Dimension>& v);
 template <typename T, size_t Dimension, typename U, typename = std::enable_if_t<std::is_constructible_v<T, U>>>
 Vector<T, Dimension> operator/(const Vector<T, Dimension>& v, const U& scalar);
 
-template<typename T, size_t Dimension>
+template <typename T, size_t Dimension>
 Vector<T, Dimension> operator-(const Vector<T, Dimension>& vector);
 
 /// vector calc
@@ -180,6 +180,13 @@ std::istream& operator>>(std::istream& in, Vector<T, Dimension>& v);
 ////////////////////////////////////////////////////DEFINITION//////////////////////////////////////////////////////////
 
 template <typename T, size_t Dimension>
+Vector<T, Dimension>::Vector() {
+  for (size_t i = 0; i < Dimension; ++i) {
+    operator[](i) = T();
+  }
+}
+
+template <typename T, size_t Dimension>
 Vector<T, Dimension>::Vector(const Data<T, Dimension>& data) : point_(data) {}
 
 template <typename T, size_t Dimension>
@@ -193,7 +200,6 @@ Vector<T, Dimension>::Vector(const Data<U, Dimension>& data) {
 template <typename T, size_t Dimension>
 template <typename U, template <typename, typename...> class Container, typename... Args, typename>
 Vector<T, Dimension>::Vector(const Container<U, Args...>& data) {
-  assert(data.size() <= Dimension);
   size_t index = 0;
   for (auto& el : data) {
     operator[](index++) = el;
@@ -202,7 +208,6 @@ Vector<T, Dimension>::Vector(const Container<U, Args...>& data) {
 
 template <typename T, size_t Dimension>
 Vector<T, Dimension>::Vector(std::initializer_list<T> list) {
-  assert(list.size() <= Dimension);
   size_t index = 0;
   for (const auto& el : list) {
     operator[](index++) = el;
@@ -359,8 +364,8 @@ Vector<T, Dimension> operator/(const Vector<T, Dimension>& v, const U& scalar) {
   return copy;
 }
 
-template<typename T, size_t Dimension>
-Vector<T, Dimension> operator-(const Vector<T, Dimension>& vector){
+template <typename T, size_t Dimension>
+Vector<T, Dimension> operator-(const Vector<T, Dimension>& vector) {
   return vector * -1;
 }
 

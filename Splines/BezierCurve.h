@@ -2,26 +2,31 @@
 // Created by Artem Novikov on 01.07.2022.
 //
 
+#ifndef GEOMETRY_SPLINES_BEZIERCURVE_H_
+#define GEOMETRY_SPLINES_BEZIERCURVE_H_
+
 #include <array>
 #include <vector>
 
 #include "BezierHelper.h"
+#include "GeometryEntities/Void.h"
 #include "GeometryEntities/Vector.h"
 #include "GeometryEntities/Point.h"
+#include "GeometryEntities/Vector.h"
+#include "GeometryEntities/Segment.h"
+#include "GeometryEntities/Line.h"
+#include "GeometryEntities/Plane.h"
 #include "GeometryEntities/BoundaryBox.h"
 #include "GeometryEntities/Transform.h"
 
-#ifndef GEOMETRY_SPLINES_BEZIERCURVE_H_
-#define GEOMETRY_SPLINES_BEZIERCURVE_H_
-
 template <typename T, size_t Dimension, size_t Degree>
-class BezierCurve {
+class BezierCurve : public Void<T, Dimension> {
  public:
   /// constructors
   template <typename... Args, typename = std::enable_if_t<sizeof...(Args) == Degree + 1>>
   BezierCurve(Args&& ... args);
   BezierCurve(std::initializer_list<Vector<T, Dimension>> list);
-  explicit BezierCurve(const std::array<Vector<T, Dimension>, Degree + 1>& array);
+  explicit BezierCurve(const std::array<Point<T, Dimension>, Degree + 1>& array);
   explicit BezierCurve(std::array<Point<T, Dimension>, Degree + 1>&& array);
   template <typename U, template <typename, typename...> class Container, typename... Args>
   explicit BezierCurve(const Container<Vector<U, Dimension>, Args...>& data);
@@ -34,6 +39,7 @@ class BezierCurve {
   BezierCurve& operator=(BezierCurve&& other) noexcept = default;
 
   /// getters and setter
+  [[nodiscard]] Entity GetType() const override { return Entity::Bezier; }
   Point<T, Dimension>& GetControlPoint(size_t index) { return controls_[index]; }
   const Point<T, Dimension>& GetControlPoint(size_t index) const { return controls_[index]; }
   Point<T, Dimension> GetPoint(const T& value) const;
@@ -44,16 +50,32 @@ class BezierCurve {
   Vector<T, Dimension> GetNormal(const T& value) const;
 
   /// calc
+  bool Contains(const Point<T, Dimension>& point) const;
+  bool Contains(const Void<T, Dimension>& object) const override;
+
+  T SquaredDistance(const Point<T, Dimension>& point) const;
+  T SquaredDistance(const Void<T, Dimension>& object) const override;
+
+  T Distance(const Point<T, Dimension>& point) const;
+  T Distance(const Void<T, Dimension>& object) const override;
+
+  std::unique_ptr<Void<T, Dimension>> Intersection(const Point<T, Dimension>& point) const;
+  std::unique_ptr<Void<T, Dimension>> Intersection(const Void<T, Dimension>& object) const override;
+
   BezierCurve<T, Dimension, Degree - 1> GetDerivative() const;
   template <typename... Args>
   std::vector<Point<T, Dimension>> GetDivision(size_t divisions, Args... args) const;
   template <typename... Args>
   BoundaryBox<T, Dimension> GetBoundaryBox(Args... args) const;
+
   template <size_t OutputDimension>
-  BezierCurve<T, OutputDimension, Degree> ApplyTransform(
-      const Transform<T, Dimension, OutputDimension>& transform) const;
+  BezierCurve<T, OutputDimension, Degree> Transformed(const Transform<T, Dimension, OutputDimension>& transform) const;
+
+  void ApplyTransform(const Transform<T, Dimension>& transform) override;
 
  private:
+  static size_t kDivisions;
+
   template <typename U>
   void PushVector(U&& value);
   template <typename U, typename... Args>
@@ -76,6 +98,9 @@ class BezierCurve {
 
   std::array<Point<T, Dimension>, Degree + 1> controls_;
 };
+
+template <typename T, size_t Dimension, size_t Degree>
+size_t BezierCurve<T, Dimension, Degree>::kDivisions = 100;
 
 template <typename T, size_t Dimension>
 using QuadraticBezier = BezierCurve<T, Dimension, 2>;
@@ -114,7 +139,7 @@ BezierCurve<T, Dimension, Degree>::BezierCurve(std::initializer_list<Vector<T, D
 }
 
 template <typename T, size_t Dimension, size_t Degree>
-BezierCurve<T, Dimension, Degree>::BezierCurve(const std::array<Vector<T, Dimension>, Degree + 1>& array)
+BezierCurve<T, Dimension, Degree>::BezierCurve(const std::array<Point<T, Dimension>, Degree + 1>& array)
     : controls_(array) {}
 
 template <typename T, size_t Dimension, size_t Degree>
@@ -199,6 +224,96 @@ Vector<T, Dimension> BezierCurve<T, Dimension, Degree>::GetNormal(const T& value
 }
 
 template <typename T, size_t Dimension, size_t Degree>
+bool BezierCurve<T, Dimension, Degree>::Contains(const Point<T, Dimension>& point) const {
+  BoundaryBox<T, Dimension> box = GetBoundaryBox();
+  T delta = T(1) / kDivisions;
+  T prev = 0;
+  T next = delta;
+  if (box.Contains(point)) {
+    for (size_t i = 0; i < kDivisions; ++i) {
+      if (Segment<T, Dimension>(GetPoint(prev), GetPoint(next)).Contains(point)) {
+        return true;
+      }
+      std::swap(prev, next);
+      next += 2 * delta;
+    }
+  }
+  return false;
+}
+
+template <typename T, size_t Dimension, size_t Degree>
+bool BezierCurve<T, Dimension, Degree>::Contains(const Void<T, Dimension>& object) const {
+  switch (object.GetType()) {
+    case Entity::Point: {
+      return Contains(static_cast<const Point<T, Dimension>&>(object));
+    }
+    default: {
+      return false;
+    }
+  }
+}
+
+template <typename T, size_t Dimension, size_t Degree>
+T BezierCurve<T, Dimension, Degree>::SquaredDistance(const Point<T, Dimension>& point) const {
+  BoundaryBox<T, Dimension> box = GetBoundaryBox();
+  T delta = T(1) / kDivisions;
+  T value = 0;
+  T squared_distance = point.SquaredDistance(controls_[0]);
+  for (size_t i = 0; i <= kDivisions; ++i) {
+    T new_distance = point.SquaredDistance(GetPoint(value));
+    if (new_distance < squared_distance) {
+      squared_distance = new_distance;
+    }
+    value += delta;
+  }
+  return squared_distance;
+}
+
+template <typename T, size_t Dimension, size_t Degree>
+T BezierCurve<T, Dimension, Degree>::SquaredDistance(const Void<T, Dimension>& object) const {
+  switch (object.GetType()) {
+    case Entity::Point: {
+      return SquaredDistance(static_cast<const Point<T, Dimension>&>(object));
+    }
+    default: {
+      return object.SquaredDistance(*this);
+    } /// TODO for other types
+  }
+}
+
+template <typename T, size_t Dimension, size_t Degree>
+T BezierCurve<T, Dimension, Degree>::Distance(const Point<T, Dimension>& point) const {
+  return std::sqrt(SquaredDistance(point));
+}
+
+template <typename T, size_t Dimension, size_t Degree>
+T BezierCurve<T, Dimension, Degree>::Distance(const Void<T, Dimension>& object) const {
+  return std::sqrt(SquaredDistance(object));
+}
+
+template <typename T, size_t Dimension, size_t Degree>
+std::unique_ptr<Void<T, Dimension>> BezierCurve<T, Dimension, Degree>::Intersection(
+    const Point<T, Dimension>& point) const {
+  if (Contains(point)) {
+    return std::make_unique<Point<T, Dimension>>(point);
+  }
+  return std::make_unique<Void<T, Dimension>>();
+}
+
+template <typename T, size_t Dimension, size_t Degree>
+std::unique_ptr<Void<T, Dimension>> BezierCurve<T, Dimension, Degree>::Intersection(
+    const Void<T, Dimension>& object) const {
+  switch (object.GetType()) {
+    case Entity::Point: {
+      return Intersection(static_cast<const Point<T, Dimension>&>(object));
+    }
+    default: {
+      return object.Intersection(*this);
+    } /// TODO for other types
+  }
+}
+
+template <typename T, size_t Dimension, size_t Degree>
 BezierCurve<T, Dimension, Degree - 1> BezierCurve<T, Dimension, Degree>::GetDerivative() const {
   std::array<Point<T, Dimension>, Degree> control_points;
   FillDerivativePoints<0>(control_points);
@@ -262,6 +377,24 @@ BoundaryBox<T, Dimension> BezierCurve<T, Dimension, Degree>::GetBoundaryBox(Args
     }
   }
   return {l_border, r_border};
+}
+
+template <typename T, size_t Dimension, size_t Degree>
+template <size_t OutputDimension>
+BezierCurve<T, OutputDimension, Degree> BezierCurve<T, Dimension, Degree>::Transformed(
+    const Transform<T, Dimension, OutputDimension>& transform) const {
+  std::array<Point<T, OutputDimension>, Degree + 1> control_points;
+  for (size_t i = 0; i <= Degree; ++i) {
+    control_points[i] = transform(controls_[i]);
+  }
+  return BezierCurve<T, OutputDimension, Degree>(std::move(control_points));
+}
+
+template <typename T, size_t Dimension, size_t Degree>
+void BezierCurve<T, Dimension, Degree>::ApplyTransform(const Transform<T, Dimension>& transform) {
+  for (size_t i = 0; i <= Degree; ++i) {
+    controls_[i].ApplyTransform(transform);
+  }
 }
 
 template <typename T, size_t Dimension, size_t Degree>
@@ -359,17 +492,6 @@ void BezierCurve<T, Dimension, Degree>::FillDerivativePoints(
   if constexpr (Index + 1 < Degree) {
     FillDerivativePoints<Index + 1>(control_points);
   }
-}
-
-template <typename T, size_t Dimension, size_t Degree>
-template <size_t OutputDimension>
-BezierCurve<T, OutputDimension, Degree> BezierCurve<T, Dimension, Degree>::ApplyTransform(
-    const Transform<T, Dimension, OutputDimension>& transform) const {
-  std::array<Vector<T, OutputDimension>, Degree + 1> control_points;
-  for (size_t i = 0; i <= Degree; ++i) {
-    control_points[i] = transform(controls_[i]);
-  }
-  return BezierCurve<T, OutputDimension, Degree>(std::move(control_points));
 }
 
 template <size_t Divisions, typename T, size_t Dimension, size_t Degree, typename... Args>
