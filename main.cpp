@@ -1,410 +1,244 @@
-#include <iostream>
-#include <set>
-#include <vector>
-#include "GeometryEntities/Vector.h"
-#include "GeometryEntities/Matrix.h"
-#include "GeometryEntities/Point.h"
-#include "GeometryEntities/Line.h"
-#include "GeometryEntities/Segment.h"
-#include "GeometryEntities/Plane.h"
-#include "GeometryEntities/BoundaryBox.h"
-#include "GeometryEntities/Transform.h"
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl2.h"
+#include <cstdio>
+#ifdef __APPLE__
+#define GL_SILENCE_DEPRECATION
+#endif
+#include <GLFW/glfw3.h>
+#include <cassert>
+#include <array>
+//#include "UI.h"
+#include "Geometry2D.h"
 
-#include "Splines/BezierCurve.h"
-#include "Splines/CanonicalBezierCurve.h"
-#include "Splines/Spline.h"
-#include "Splines/CanonicalSpline.h"
-
-#include <SFML/Graphics.hpp>
-
-using namespace std;
-
-void VectorTest() {
-  /// Data
-  Data<float, 3> p;
-  p.x = 1;
-  p.y = 2;
-  p.z = 3;
-
-  /// constructors
-  const Vector<float, 3> cv(1.f, 0.f, 0.f);
-  Vector<float, 3> a(1.f, 0.f, 0.f);
-  Vector<float, 3> b({0.f, 1.f, 0.f});
-  Vector<float, 3> c(std::vector<float>({1.f, 1.f, 1.f}));
-  Vector<float, 3> d(p);
-  Vector<float, 3> e(std::set<float>({1.f, 2.f, 3.f}));
-  cout << a << " " << b << " " << c << " " << d << '\n';
-  d += d;
-  d *= 5;
-  d /= 5;
-  d -= d;
-  /// arithmetic
-  cout << a + b << " " << a - b << " " << c * 5 << " " << 3. * c / 5. << " " << a * c << '\n';
-
-  /// vector calc
-  cout << DotProduct(a, c) << " " << DotProduct(a, b) << " " << CrossProduct(a, b) << " " << MixedProduct(a, b, c)
-       << " " << a.SquaredLength() << " " << b.Length() << " " << Normalised(c) << " " << Cos(a, b) << " "
-       << Sin(a, c) << " " << Angle(a, b) << '\n';
-
-  /// relationship
-  assert(FindRelationship(a, c) == VectorRelationship::None);
-  assert(FindRelationship(a, b) == VectorRelationship::Orthogonal);
-  assert(a != b);
-  assert(a == a);
+static void glfw_error_callback(int error, const char* description) {
+  fprintf(stderr, "Glfw Error %d: %s\n", error, description);
 }
 
-void MatrixTest() {
-  /// constructors
-  Matrix<double, 3> a({{1, 2, 3}, {4, 5, 6}, {7, 8, 9}});
-  Matrix<double, 3> b(Vector3d(1, 0, 1), Vector3d(0, 1, 2), Vector3d(3, 1, 0));
-  Matrix<double, 3, 1> c({{1, 1, 1}});
-  Matrix<double, 3> e;
-  /// arithmetic
-  std::cout << a << '\n' << b << '\n' << e << '\n';
-  std::cout << a + b << '\n' << a - b << '\n';
-  std::cout << a * b << '\n';
-  std::cout << a * c << '\n';
-  auto copy = a;
-  copy *= b;
-  std::cout << copy << '\n';
-  std::cout << a + 3 << '\n' << a - 5 << '\n' << a * 6 << '\n';
+class Window {
+ public:
+  Window(size_t width, size_t height) {
+    glfwSetErrorCallback(glfw_error_callback);
+    assert(glfwInit());
+    window_ = glfwCreateWindow(width, height, "Dear ImGui GLFW+OpenGL2 example", nullptr, nullptr);
+    assert(window_ != nullptr);
+    glfwMakeContextCurrent(window_);
+    glfwSwapInterval(1); // Enable vsync
 
-  /// matrix calc
-  std::cout << Transposed(c) << '\n';
-  std::cout << Triangulated(a) << '\n';
-  std::cout << Diagonalized(b) << '\n';
-  assert(a.Determinant() == 0);
-  assert(b.Determinant() == -5);
-  assert(a.Trace() == 15);
-  assert(b.Trace() == 2);
-  assert(a.Rank() == 2);
-  assert(b.Rank() == 3);
-  assert(c.Rank() == 1);
-  assert(b * Inverted(b) == e);
-  /// relationship
-  assert(a == a);
-  assert(a != b);
-}
+    // Setup Dear ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    io_ = &ImGui::GetIO();
+    (void) *io_;
+    io_->ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
+    //io_->ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    io_->ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
+    io_->ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+    //io_->ConfigViewportsNoAutoMerge = true;
+    //io_->ConfigViewportsNoTaskBarIcon = true;
 
-void PointTest() {
-  /// constructors
-  Point3f a(1.f, 0.f, 0.f);
-  Point3<float> b({0.f, 1.f, 0.f});
-  Point<float, 3> c(vector<float>({1.f, 1.f, 1.f}));
-  cout << a << " " << b << " " << c << '\n';
-  /// arithmetic
-  cout << a + b << " " << a - b << " " << c * 5 << " " << 3 * c / 5 << " " << a * c << '\n';
+    // Setup Dear ImGui style
+    ImGui::StyleColorsDark();
+    //ImGui::StyleColorsLight();
 
-  /// calc
-  cout << DotProduct(a, c) << " " << DotProduct(a, b) << " " << CrossProduct(a, b) << " " << MixedProduct(a, b, c)
-       << " " << a.SquaredDistance(b) << " " << a.Distance(c) << " " << Normalised(c) << " " << Cos(a, b) << " "
-       << Sin(a, c) << " " << Angle(a, b) << '\n';
-
-  /// relationship
-  assert(FindRelationship(a, c) == PointRelationship::None);
-  assert(FindRelationship(a, a) == PointRelationship::Identical);
-  assert(a != b);
-  assert(a == a);
-}
-
-void LineTest() {
-  /// constructors
-  Line3d a(Point3d(0, 0, 0), Point3d(1, 1, 1));
-  Line3d b(Point3d(0, 0, 0), Vector3d(1, 0, 0));
-  Line3d c;
-  c.GetOrigin() = {3, 1, 2};
-  c.GetDirection() = {1, 1, 1};
-  Line3d d(a.GetPoint(10), Normalised(a.GetDirection()));
-  std::cout << "constructors ok\n";
-  /// setters and getters
-  assert(a[10] == Point3d(10, 10, 10));
-  assert(c[-1] == Point3d(2, 0, 1));
-  std::cout << "getters ok\n";
-  /// calc
-  auto copy = a;
-  copy.Normalise();
-  assert(copy.GetDirection().Length() == 1.);
-  assert(copy.GetPoint(10 * a.GetDirection().Length()) == a.GetPoint(10));
-  assert(b.Contains({5, 0, 0}));
-  assert(!b.Contains({5, 5, 5}));
-  std::cout << "Contains ok\n";
-
-  assert(a.SquaredDistance({0, 0, 0}) == 0);
-  assert(b.SquaredDistance({0, 0, 1}) == 1);
-
-  auto copyb = b;
-  copyb.Normalise();
-  copyb.GetOrigin() = {0, 0, 1};
-  assert(b.SquaredDistance(copyb) == 1);
-  assert(b.SquaredDistance(a) == 0);
-  assert(b.SquaredDistance(b) == 0);
-  std::cout << "distance ok\n";
-
-  auto inter = a.Intersection(b);
-  assert(inter.GetType() == Entity::Point);
-  assert(inter.GetValue<Point3d>() == a.GetOrigin());
-
-  inter = a.Intersection(a);
-  assert(inter.GetType() == Entity::Line);
-  assert(inter.GetValue<Line3d>() == a);
-
-  inter = a.Intersection(Segment3d(a.GetPoint(0), a.GetPoint(1)));
-  assert(inter.GetType() == Entity::Segment);
-  assert(inter.GetValue<Segment3d>() == Segment3d(a.GetPoint(0), a.GetPoint(1)));
-
-  inter = a.Intersection(Segment3d(b.GetPoint(-1), b.GetPoint(1)));
-  assert(inter.GetType() == Entity::Point);
-  assert(inter.GetValue<Point3d>() == a.GetOrigin());
-
-  inter = a.Intersection(Segment3d(b.GetPoint(-1), b.GetPoint(-0.5)));
-  assert(inter.GetType() == Entity::Void);
-
-  std::cout << "intersection ok\n";
-
-  assert(b.Projection({0, 1, 0}) == Point3d(0, 0, 0));
-  assert(a.Projection({1, 1, 1}) == Point3d(1, 1, 1));
-
-  assert(b.Projection(Segment3d({-1, 0, 0}, {1, 0, 0})) == Segment3d({-1, 0, 0}, {1, 0, 0}));
-  assert(b.Projection(Segment3d({-1, 0, 5}, {1, 0, 10})) == Segment3d({-1, 0, 0}, {1, 0, 0}));
-
-  std::cout << "projection ok\n";
-  /// relationship
-  assert(FindRelationship(a, c) == LineRelationship::Parallel);
-  assert(FindRelationship(a, a) == LineRelationship::Identical);
-  assert(FindRelationship(a, b) == LineRelationship::Intersecting);
-  assert(FindRelationship(a, copyb) == LineRelationship::Skew);
-  assert(a != b);
-  assert(a == d);
-}
-
-void SegmentTest() {
-  /// constructors
-  Segment3d a(Point3d(-3, 0, 0), Point3d(1, 0, 0));
-  Segment3d b(Point3d(0, 0, 0), Point3d(1, 0, 0));
-  Segment3d c(Point3d(0, -1, 0), Vector3d(0, 1, 0));
-  Segment3d d(Point3d(2, 0, 0), Vector3d(2, 1, 0));
-  std::cout << "constructors ok\n";
-  /// setters and getters
-  assert(a.GetPoint(0.75) == Point3d(0, 0, 0));
-  assert(a[1] == a.GetRight());
-  assert(a.GetLeft() == b.GetPoint(-3));
-  assert(a.GetDirection() == Vector3d(4, 0, 0));
-  assert(a.GetMidpoint() == Point3d(-1, 0, 0));
-  std::cout << "getters ok\n";
-
-  /// calc
-  assert(a.Contains(Point3d(0, 0, 0)));
-  assert(!a.Contains(Point3d(1, 1, 1)));
-
-  std::cout << "Contains ok\n";
-
-  assert(a.SquaredDistance(Point3d(0, 1, 0)) == 1);
-  assert(a.SquaredDistance(Point3d(0, 0, 0)) == 0);
-  assert(a.SquaredDistance(Point3d(2, 1, 0)) == 2);
-
-  assert(a.SquaredDistance(b) == 0);
-  assert(a.SquaredDistance(c) == 0);
-  assert(c.SquaredDistance(d) == 4);
-  assert(a.SquaredDistance(d) == 1);
-  assert(a.SquaredDistance(Segment3d({2, 0, 0}, {3, 1, 1})) == 1);
-
-  std::cout << "distance ok\n";
-
-  auto inter = a.Intersection(Point3d(0, 0, 0));
-  assert(inter.GetType() == Entity::Point);
-  assert(inter.GetValue<Point3d>() == Point3d(0, 0, 0));
-
-  inter = a.Intersection(b);
-  assert(inter.GetType() == Entity::Segment);
-  assert(inter.GetValue<Segment3d>() == b);
-
-  inter = a.Intersection(c);
-  assert(inter.GetType() == Entity::Point);
-  assert(inter.GetValue<Point3d>() == Point3d(0, 0, 0));
-
-  inter = a.Intersection(d);
-  assert(inter.GetType() == Entity::Void);
-  std::cout << "intersection ok\n";
-
-  assert(a.Projection(Point3d(0, 15, 2)) == Point3d(0, 0, 0));
-  assert(c.Projection(d) == Segment3d({0, 0, 0}, {0, 1, 0}));
-
-  std::cout << "projection ok\n";
-
-  /// relationship
-  assert(FindRelationship(a, c) == SegmentRelationship::Intersecting);
-  assert(FindRelationship(a, b) == SegmentRelationship::Intersecting);
-  assert(FindRelationship(a, a) == SegmentRelationship::Identical);
-  assert(FindRelationship(a, d) == SegmentRelationship::Skew);
-  assert(FindRelationship(d, c) == SegmentRelationship::Parallel);
-  assert(a != b);
-  assert(a == a);
-}
-
-void PlaneTest() {
-  /// constructors
-  Plane<double> a(Point3d(0, 0, 0), Vector3d(1, 0, 0), Vector3d(0, 2, 0));
-  Plane<double> b(Point3d(1, 0, 1), Point3d(2, 0, 1), Point3d(0, 1, 1));
-  Plane<double> c(Point3d(0, 0, 0), Vector3d(1, 0, 0), Vector3d(0, 0, 1));
-  Plane<double> d;
-  std::cout << "constructors ok\n";
-
-  /// setters and getters
-  d.GetOrigin() = {0, 0, 0};
-  d.GetAbscissa() = {0, 1, 0};
-  d.GetOrdinate() = {0, 0, 1};
-  assert(a.GetPoint(2, 1) == Point3d(2, 2, 0));
-  assert(a.GetNormal() == Vector3d(0, 0, 2));
-  std::cout << "getters ok\n";
-
-  /// calc
-  auto copy = a;
-  copy.Normalise();
-  assert(a.Contains(Point3d(1, 1, 0)));
-  assert(!a.Contains(Point3d(1, 1, 10)));
-  assert(a.Contains(Line3d(Point3d{0, 1, 0}, Point3d{1, 0, 0})));
-  assert(a.Contains(Segment3d({1, 1, 0}, {0, 1, 0})));
-  assert(!a.Contains(Segment3d({1, 1, 0}, {0, 1, 1})));
-
-  std::cout << "Contains ok\n";
-
-  assert(a.SquaredDistance(b) == 1);
-  assert(a.SquaredDistance(Point3d(1, 15, -3)) == 9);
-  assert(a.SquaredDistance(Line3d({0, 0, 0}, Point3d(1, 1, 1))) == 0);
-  assert(a.SquaredDistance(Line3d({1, 1, 1}, Point3d(1, 0, 1))) == 1);
-  assert(a.SquaredDistance(Segment3d({100, 1, 1}, Point3d(1, 0, 2))) == 1);
-
-  std::cout << "distance ok\n";
-
-  auto inter = a.Intersection(Point3d(1, 1, 0));
-  assert(inter.GetType() == Entity::Point);
-  assert(inter.GetValue<Point3d>() == Point3d(1, 1, 0));
-
-  inter = a.Intersection(Line3d({0, 0, -1}, Point3d(0, 0, 1)));
-  assert(inter.GetType() == Entity::Point);
-  assert(inter.GetValue<Point3d>() == Point3d(0, 0, 0));
-
-  inter = a.Intersection(Line3d({0, 1, 0}, Point3d(1, 0, 0)));
-  assert(inter.GetType() == Entity::Line);
-  assert(inter.GetValue<Line3d>() == Line3d({0, 1, 0}, Point3d(1, 0, 0)));
-
-  inter = a.Intersection(Segment3d({0, 1, 1}, Point3d(1, 0, 0)));
-  assert(inter.GetType() == Entity::Point);
-  assert(inter.GetValue<Point3d>() == Point3d(1, 0, 0));
-
-  inter = a.Intersection(Segment3d({0, 1, 0}, Point3d(1, 0, 0)));
-  assert(inter.GetType() == Entity::Segment);
-  assert(inter.GetValue<Segment3d>() == Segment3d({0, 1, 0}, Point3d(1, 0, 0)));
-
-  inter = a.Intersection(c);
-  assert(inter.GetType() == Entity::Line);
-  assert(inter.GetValue<Line3d>() == Line3d(Point3d(0, 0, 0), Vector3d(1, 0, 0)));
-
-  inter = a.Intersection(copy);
-  assert(inter.GetType() == Entity::Plane);
-  assert(inter.GetValue<Plane<double>>() == a);
-  std::cout << "intersection ok\n";
-
-  assert(a.Projection(Point3d(1, 1, 1)) == Point3d(1, 1, 0));
-  assert(a.Projection(Line3d({1, 0, 1}, Point3d(0, 1, 0))) == Line3d({1, 0, 0}, Point3d(0, 1, 0)));
-  assert(a.Projection(Segment3d({1, 2, 3}, {4, 5, 6})) == Segment3d({1, 2, 0}, {4, 5, 0}));
-
-  std::cout << "projection ok\n";
-
-  /// relationship
-  assert(FindRelationship(a, c) == PlaneRelationship::Intersecting);
-  assert(FindRelationship(a, b) == PlaneRelationship::Parallel);
-  assert(FindRelationship(a, copy) == PlaneRelationship::Identical);
-  assert(a != b);
-  assert(a == a);
-}
-
-void GeometryTest() {
-  cout << "Vector Test \n";
-  VectorTest();
-
-  cout << "\nMatrix Test \n";
-  MatrixTest();
-
-  cout << "\nPoint Test \n";
-  PointTest();
-
-  cout << "\nLine Test \n";
-  LineTest();
-
-  cout << "\nSegment Test \n";
-  SegmentTest();
-
-  cout << "\nPlane Test \n";
-  PlaneTest();
-}
-
-sf::VertexArray Convert(const std::vector<Point2f>& points, Vector2f shift, sf::Color color, float scale = 1) {
-  sf::VertexArray arr(sf::LineStrip, points.size());
-  for (size_t i = 0; i < points.size(); ++i) {
-    arr[i].position = sf::Vector2f(shift[0] + points[i].data().x * scale, shift[1] + points[i].data().y * scale);
-    arr[i].color = color;
-  }
-  return arr;
-}
-
-void BezierTest() {
-  sf::RenderWindow window(sf::VideoMode(1980, 1080), "My window");
-  std::vector<Vector2f>
-      vv = {Vector2f(0, 0), Vector2f(100, 0), Vector2f(100, 100), Vector2f(0, 100), Vector2f(190, 0)};
-  BezierCurve<float, 2, 4> curve(vv);
-  CanonicalBezierCurve<float, 2, 4> can_curve(curve, 100);
-  auto derivative = curve.GetDerivative();
-  derivative.Translate({500, 500});
-  curve.Translate({500, 500});
-  can_curve.Translate({700, 700});
-//  for (size_t i = 1; i < 100; ++i) {
-//    std::cout << curve.GetAcceleration(float(1) / i) << ' ' << derivative.GetVelocity(float(1) / i) << '\n';
-//  }
-  auto div_curve = Convert(curve.GetDivision(100), {0, 0}, sf::Color::White);
-  auto div_can = Convert(can_curve.GetDivision(100), {0, 0}, sf::Color::Red);
-  auto div_der = Convert(derivative.GetDivision(100), {0, 0}, sf::Color::Green);
-  auto div_der_der = Convert(derivative.GetDerivative().GetDivision(100), {500, 500}, sf::Color::Blue, 0.1);
-  std::array<sf::CircleShape, 5> points;
-  for (size_t i = 0; i < 5; ++i) {
-    points[i].setRadius(5);
-    points[i].setOrigin(5, 5);
-    points[i].setPosition(curve.GetControlPoint(i).data().x, curve.GetControlPoint(i).data().y);
-  }
-  auto box = derivative.GetBoundaryBox();
-  sf::RectangleShape
-      rect({box.GetRight().data().x - box.GetLeft().data().x, box.GetRight().data().y - box.GetLeft().data().y});
-  rect.setPosition({box.GetLeft().data().x, box.GetLeft().data().y});
-  rect.setFillColor(sf::Color::Transparent);
-  rect.setOutlineThickness(2);
-
-//  for (auto& point : derivative.GetDivision(100)) {
-//    std::cout << point << '\n';
-//  }
-  while (window.isOpen()) {
-    sf::Event event;
-    while (window.pollEvent(event)) {
-      if (event.type == sf::Event::Closed)
-        window.close();
+    // When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
+    ImGuiStyle& style = ImGui::GetStyle();
+    if (io_->ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+      style.WindowRounding = 0.0f;
+      style.Colors[ImGuiCol_WindowBg].w = 1.0f;
     }
 
-    window.clear();
-    window.draw(div_curve);
-    window.draw(div_can);
-    window.draw(div_der);
-    window.draw(div_der_der);
-    for (size_t i = 0; i < 5; ++i) {
-      window.draw(points[i]);
-    }
-    window.draw(rect);
-    window.display();
+    // Setup Platform/Renderer backends
+    ImGui_ImplGlfw_InitForOpenGL(window_, true);
+    ImGui_ImplOpenGL2_Init();
+    // Load Fonts
+    // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
+    // - AddFontFromFileTTF() will return the ImFont* so you can store it if you need to select the font among multiple.
+    // - If the file cannot be loaded, the function will return NULL. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
+    // - The fonts will be rasterized at a given size (w/ oversampling) and stored into a texture when calling ImFontAtlas::Build()/GetTexDataAsXXXX(), which ImGui_ImplXXXX_NewFrame below will call.
+    // - Read 'docs/FONTS.md' for more instructions and details.
+    // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
+    //io.Fonts->AddFontDefault();
+    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Roboto-Medium.ttf", 16.0f);
+    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
+    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf", 16.0f);
+    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/ProggyTiny.ttf", 10.0f);
+    //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
+    //IM_ASSERT(font != NULL);
   }
-}
 
-int main() {
-  cout << "\nGeometry Test \n";
-  GeometryTest();
-  std::cout << binomial_coefficient<3, 0> << binomial_coefficient<3, 1> << binomial_coefficient<3, 2>
-            << binomial_coefficient<3, 3> << '\n';
-  BezierTest();
+  void RenderWindow() {
+    while (!glfwWindowShouldClose(window_)) {
+      // Poll and handle events (inputs, window resize, etc.)
+      // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
+      // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application, or clear/overwrite your copy of the mouse data.
+      // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application, or clear/overwrite your copy of the keyboard data.
+      // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
+      glfwPollEvents();
+
+      // Start the Dear ImGui frame
+      ImGui_ImplOpenGL2_NewFrame();
+      ImGui_ImplGlfw_NewFrame();
+      ImGui::NewFrame();
+
+      /// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
+      if (show_demo_window) {
+        ImGui::ShowDemoWindow(&show_demo_window);
+      }
+
+      /// 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
+      {
+        static float f = 0.0f;
+        static int counter = 0;
+        static char* previous_state = nullptr;
+
+        ImGui::Begin("Hello, world!");
+
+        if (ImGui::CollapsingHeader("Inspect")) {
+          static const size_t number_tools = 3;
+          static std::array<const char*, number_tools> inspection_names = {"move", "rotate", "delete"};
+          static std::array<char, number_tools> inspection_tools = {false, false, false};
+          for (size_t x = 0; x < inspection_tools.size(); ++x) { /// TODO variable layout
+            if (x > 0) { ImGui::SameLine(); }
+            ImGui::PushID(x);
+            if (ImGui::Selectable(inspection_names[x], inspection_tools[x] != 0, 0, ImVec2(50, 50))) {
+              if (previous_state) {
+                *previous_state ^= 1;
+              }
+              previous_state = &inspection_tools[x];
+              *previous_state ^= 1;
+            }
+            ImGui::PopID();
+          }
+        }
+
+        if (ImGui::CollapsingHeader("Construct")) {
+          static const size_t number_tools = 4;
+          static std::array<const char*, number_tools>
+              inspection_names = {"midpoint", "bisector", "tangents", "projection"};
+          static std::array<char, number_tools> inspection_tools = {false, false, false, false};
+          for (size_t x = 0; x < inspection_tools.size(); ++x) { /// TODO variable layout
+            if (x > 0) { ImGui::SameLine(); }
+            ImGui::PushID(x);
+            if (ImGui::Selectable(inspection_names[x], inspection_tools[x] != 0, 0, ImVec2(50, 50))) {
+              if (previous_state) {
+                *previous_state ^= 1;
+              }
+              previous_state = &inspection_tools[x];
+              *previous_state ^= 1;
+            }
+            ImGui::PopID();
+          }
+        }
+
+        if (ImGui::CollapsingHeader("Create")) {
+          static const size_t number_tools = 3;
+          static std::array<const char*, number_tools>
+              inspection_names = {"point", "line", "segment"};
+          static std::array<char, number_tools> inspection_tools = {false, false, false};
+          for (size_t x = 0; x < inspection_tools.size(); ++x) { /// TODO variable layout
+            if (x > 0) { ImGui::SameLine(); }
+            ImGui::PushID(x);
+            if (ImGui::Selectable(inspection_names[x], inspection_tools[x] != 0, 0, ImVec2(50, 50))) {
+              if (previous_state) {
+                *previous_state ^= 1;
+              }
+              previous_state = &inspection_tools[x];
+              *previous_state ^= 1;
+            }
+            ImGui::PopID();
+          }
+        }
+
+        ImGui::Text("This is some useful text.");
+        ImGui::Checkbox("Demo Window", &show_demo_window);
+        ImGui::Checkbox("Another Window", &show_another_window);
+
+        ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
+        ImGui::ColorEdit3("clear color", (float*) &clear_color);
+
+        if (ImGui::Button("Button")) {
+          counter++;
+        }
+        ImGui::SameLine();
+        ImGui::Text("counter = %d", counter);
+
+        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
+                    1000.0f / ImGui::GetIO().Framerate,
+                    ImGui::GetIO().Framerate);
+        ImGui::End();
+      }
+
+      /// 3. Show another simple window.
+      if (show_another_window) {
+        ImGui::Begin("Another Window", &show_another_window);
+        ImGui::Text("Hello from another window!");
+        if (ImGui::Button("Close Me")) {
+          show_another_window = false;
+        }
+        ImGui::End();
+      }
+
+      /// Rendering
+
+      ImGui::Render();
+      int display_w, display_h;
+      glfwGetFramebufferSize(window_, &display_w, &display_h);
+      glViewport(0, 0, display_w, display_h);
+      glClearColor(clear_color.x * clear_color.w,
+                   clear_color.y * clear_color.w,
+                   clear_color.z * clear_color.w,
+                   clear_color.w);
+      glClear(GL_COLOR_BUFFER_BIT);
+
+      ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
+
+      glBegin(GL_QUADS); // Start drawing a quad primitive
+      glColor3f(1.0, 0.0, 0.0);   // red
+      glVertex2f(0.0f, 1.0f); // The bottom left corner
+      glColor3f(0.f, 0.0f, 1.0f);
+      glVertex2f(1.0f, 1.0f); // The top left corner
+      glColor3f(1.0, 0.0, 0.0);   // red
+      glVertex2f(1.0f, 0); // The top right corner
+      glColor3f(0.0, 1.0, 0.0);   // red
+      glVertex2f(0, 0); // The bottom right corner
+
+      glEnd();
+      // MyApp.Render(); /// TODO
+
+      // Update and Render additional Platform Windows
+      // (Platform functions may change the current OpenGL context, so we save/restore it to make it easier to paste this code elsewhere.
+      //  For this specific demo app we could also call glfwMakeContextCurrent(window) directly)
+      if (io_->ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+        GLFWwindow* backup_current_context = glfwGetCurrentContext();
+        ImGui::UpdatePlatformWindows();
+        ImGui::RenderPlatformWindowsDefault();
+        glfwMakeContextCurrent(backup_current_context);
+      }
+
+      glfwSwapBuffers(window_);
+    }
+  }
+
+  ~Window() {
+    ImGui_ImplOpenGL2_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
+    glfwDestroyWindow(window_);
+    glfwTerminate();
+  }
+
+ private:
+  GLFWwindow* window_ = nullptr;
+  ImGuiIO* io_ = nullptr;
+
+  bool show_demo_window = true;
+  bool show_another_window = true;
+  ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+};
+
+int main(int, char**) {
+  Window window(2000, 1000);
+  window.RenderWindow();
 }
