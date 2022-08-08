@@ -13,6 +13,8 @@ class Matrix {
  public:
   /// construction
   Matrix();
+  template <bool Access = Rows == Columns, typename = std::enable_if_t<Access>>
+  explicit Matrix(const Vector<T, Rows>& diagonal);
   Matrix(const Matrix& other) = default;
   Matrix(Matrix&& other) noexcept = default;
   Matrix(std::initializer_list<Vector<T, Rows>> list);
@@ -148,6 +150,19 @@ Matrix<T, Rows, Columns>::Matrix() {
         operator[](i)[j] = 0;
       }
       operator[](i)[i] = 1;
+    }
+  }
+}
+
+template <typename T, size_t Rows, size_t Columns>
+template <bool, typename>
+Matrix<T, Rows, Columns>::Matrix(const Vector<T, Rows>& diagonal) {
+  if constexpr(Columns == Rows) {
+    for (size_t i = 0; i < Columns; ++i) {
+      for (size_t j = 0; j < Columns; ++j) {
+        operator[](i)[j] = 0;
+      }
+      operator[](i)[i] = diagonal[i];
     }
   }
 }

@@ -11,9 +11,9 @@ class CreatePointTool : public Tool {
  public:
   CreatePointTool(Geometry2D<float>& output_geometry) : Tool(output_geometry) {}
 
-  void ProcessInput(const Point2f& clicked_pos) override {
+  void ProcessPressed(const Point2f& clicked_pos) override {
     auto selected_objects = Tool::output_geometry_.Selected(clicked_pos);
-    if (!Filter(selected_objects, {Entity::Point}).empty()) { output_geometry_.Push(clicked_pos); }
+    if (Filter(selected_objects, {Entity::Point}).empty()) { output_geometry_.Push(clicked_pos); }
   }
 
   Point2f ProcessHover(const Point2f& cursor_pos, float vicinity) override {

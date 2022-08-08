@@ -2,10 +2,11 @@
 // Created by Artem Novikov on 04.07.2022.
 //
 
-#include "Point.h"
-
 #ifndef GEOMETRY_GEOMETRYENTITIES_BOUNDARYBOX_H_
 #define GEOMETRY_GEOMETRYENTITIES_BOUNDARYBOX_H_
+
+#include "Point.h"
+#include "Transform.h"
 
 template <typename T, size_t Dimension>
 class BoundaryBox {
@@ -23,11 +24,16 @@ class BoundaryBox {
   Point<T, Dimension>& GetRight() { return point_r_; }
   const Point<T, Dimension>& GetLeft() const { return point_l_; }
   const Point<T, Dimension>& GetRight() const { return point_r_; }
+  T GetSide(size_t dimension) const { return point_r_[dimension] - point_l_[dimension]; }
+  Point<T, Dimension> GetCenter() const { return (point_r_ + point_l_) / 2; }
 
   /// calc
   bool Contains(const Point<T, Dimension>& point) const;
   bool Inside(const BoundaryBox& box) const;
   bool Intersects(const BoundaryBox& box) const;
+  template <size_t OutputDimension>
+  BoundaryBox<T, OutputDimension> Transformed(const Transform<T, Dimension, OutputDimension>& transform) const;
+  void ApplyTransform(const Transform<T, Dimension>& transform);
  private:
   Point<T, Dimension> point_l_;
   Point<T, Dimension> point_r_;
@@ -78,6 +84,19 @@ bool BoundaryBox<T, Dimension>::Intersects(const BoundaryBox& box) const {
     is_intersecting &= std::max(box.GetLeft()[i], GetLeft()[i]) <= std::min(box.GetRight()[i], GetRight()[i]);
   }
   return is_intersecting;
+}
+
+template <typename T, size_t Dimension>
+template <size_t OutputDimension>
+BoundaryBox<T, OutputDimension> BoundaryBox<T, Dimension>::Transformed(
+    const Transform<T, Dimension, OutputDimension>& transform) const {
+  return {point_l_.Transformed(transform), point_r_.Transformed(transform)};
+}
+
+template <typename T, size_t Dimension>
+void BoundaryBox<T, Dimension>::ApplyTransform(const Transform<T, Dimension>& transform) {
+  point_l_.ApplyTransform(transform);
+  point_r_.ApplyTransform(transform);
 }
 
 #endif //GEOMETRY_GEOMETRYENTITIES_BOUNDARYBOX_H_

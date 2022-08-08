@@ -81,6 +81,12 @@ template <typename T, size_t Dimension>
 Transform<T, Dimension> Translate(const Vector<T, Dimension>& shift);
 
 template <typename T, size_t Dimension>
+Transform<T, Dimension> Scale(const Vector<T, Dimension>& scale);
+
+template <typename T, size_t Dimension>
+Transform<T, Dimension> Scale(const Vector<T, Dimension>& scale, const Vector<T, Dimension>& origin);
+
+template <typename T, size_t Dimension>
 Transform<T, Dimension> Flip(size_t direction);
 
 template <typename T, size_t Dimension>
@@ -152,7 +158,7 @@ template <typename T, size_t InputDimension, size_t OutputDimension>
 template <bool, typename>
 Transform<T, InputDimension, OutputDimension>& Transform<T, InputDimension, OutputDimension>::Invert() {
   matrix_.Invert();
-  shift_ = -matrix_ * shift_;
+  shift_ = -(matrix_ * shift_);
   return *this;
 }
 
@@ -188,6 +194,16 @@ Transform<T, Dimension> Inverted(const Transform<T, Dimension>& transform) {
 template <typename T, size_t Dimension>
 Transform<T, Dimension> Translate(const Vector<T, Dimension>& shift) {
   return Transform(Identity<T, Dimension>(), shift);
+}
+
+template <typename T, size_t Dimension>
+Transform<T, Dimension> Scale(const Vector<T, Dimension>& scale) {
+  return Transform(Matrix<T, Dimension>(scale), Vector<T, Dimension>());
+}
+
+template <typename T, size_t Dimension>
+Transform<T, Dimension> Scale(const Vector<T, Dimension>& scale, const Vector<T, Dimension>& origin) {
+  return Transform(Matrix<T, Dimension>(scale), origin - origin.Scaled(scale));
 }
 
 template <typename T, size_t Dimension>

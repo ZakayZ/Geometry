@@ -59,6 +59,14 @@ class Vector {
 
   Vector& ClampMagnitude(const T& new_magnitude);
 
+  Vector& Scale(const Vector& scale_vector);
+
+  Vector& InvertedScale(const Vector& scale_vector);
+
+  Vector Scaled(const Vector& scale_vector) const;
+
+  Vector InvertedScaled(const Vector& scale_vector) const;
+
   /// getters and setters
   Data<T, Dimension>& data() noexcept { return point_; }
 
@@ -249,6 +257,36 @@ template <typename T, size_t Dimension>
 Vector<T, Dimension>& Vector<T, Dimension>::ClampMagnitude(const T& new_magnitude) {
   *this *= new_magnitude / Length();
   return *this;
+}
+
+template <typename T, size_t Dimension>
+Vector<T, Dimension>& Vector<T, Dimension>::Scale(const Vector<T, Dimension>& scale_vector) {
+  for (size_t i = 0; i < Dimension; ++i) {
+    operator[](i) *= scale_vector[i];
+  }
+  return *this;
+}
+
+template <typename T, size_t Dimension>
+Vector<T, Dimension>& Vector<T, Dimension>::InvertedScale(const Vector<T, Dimension>& scale_vector) {
+  for (size_t i = 0; i < Dimension; ++i) {
+    operator[](i) /= scale_vector[i];
+  }
+  return *this;
+}
+
+template <typename T, size_t Dimension>
+Vector<T, Dimension> Vector<T, Dimension>::Scaled(const Vector<T, Dimension>& scale_vector) const {
+  auto copy = *this;
+  copy.Scale(scale_vector);
+  return copy;
+}
+
+template <typename T, size_t Dimension>
+Vector<T, Dimension> Vector<T, Dimension>::InvertedScaled(const Vector<T, Dimension>& scale_vector) const {
+  auto copy = *this;
+  copy.InvertedScale(scale_vector);
+  return copy;
 }
 
 template <typename T, size_t Dimension>

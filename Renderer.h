@@ -11,7 +11,6 @@
 #include <OpenGL/gl.h>
 
 #include "GeometryEntities/Transform.h"
-#include "GeometryWindow.h"
 #include "Geometry2D.h"
 
 struct Style {
@@ -20,7 +19,7 @@ struct Style {
 };
 
 struct Vertex2f {
-  Vector2f position;
+  Point2f position;
   Vector3f color;
 };
 
@@ -31,17 +30,20 @@ class Renderer {
   Renderer(int window_width, int window_height) /// in pixels
       : window_box_(-Vector2f(window_width * 0.5f, window_height * 0.5f) / kUnitLength,
                     Vector2f(window_width * 0.5f, window_height * 0.5f) / kUnitLength),
-        fit_to_screen_({{2.f / window_width, 0.f}, {0.f, 2.f / window_height}}, {0.f, 0.f}) {}
+        fit_to_screen_({{2.f / window_box_.GetSide(0), 0.f}, {0.f, 2.f / window_box_.GetSide(1)}}, {0.f, 0.f}) {}
 
   ~Renderer() = default;
 
   void RegisterWindowShift(const Vector2f& shift) {
-    window_box_.ApplyTransform(Translate(-shift.Scaled(scale_)));
+    window_box_.ApplyTransform(Translate(shift.Scaled(scale_) / kUnitLength));
     RecalculateTransform();
   }
 
   void RegisterWindowScale(const Vector2f& new_window_size) {
-    window_box_.GetRight() = new_window_size.Scaled(scale_) / kUnitLength + window_box_.GetLeft();
+    auto pivot = window_box_.GetLeft();
+    pivot[1] = window_box_.GetRight()[1];
+    window_box_.GetRight() = pivot + Vector2f(new_window_size[0] * scale_[0], 0) / kUnitLength;
+    window_box_.GetLeft() = pivot + Vector2f(0, -new_window_size[1] * scale_[1]) / kUnitLength;
     RecalculateTransform();
   }
 
@@ -50,11 +52,10 @@ class Renderer {
     RecalculateTransform();
   }
 
-  void RegisterCoordinateSystemScale(const Vector2f& added_scale) {
+  void RegisterCoordinateSystemScale(const Vector2f& scale) {
     auto center = window_box_.GetCenter();
-    auto new_scale = added_scale + scale_;
-    window_box_.ApplyTransform(Scale(new_scale.InvertedScaled(scale_), center));
-    scale_ = new_scale;
+    window_box_.ApplyTransform(Scale(scale, center));
+    scale_ *= scale;
     RecalculateTransform();
   }
 
@@ -81,7 +82,7 @@ class Renderer {
 
   void RenderCircle(
       const Point2f& center, float radius, const Vector3f& color = {1.f, 1.f, 1.f}, size_t vertex_count = 30) const {
-    glBegin(GL_LINE_LOOP);
+    glBegin(GL_POLYGON);
     float delta = 2 * M_PI / vertex_count;
     for (size_t i = 0; i < vertex_count; ++i) {
       auto position = center + Vector2f(std::cosf(i * delta), std::sinf(i * delta)) * radius;
@@ -90,9 +91,13 @@ class Renderer {
     glEnd();
   }
 
+  void RenderCoordinateSystem() {
+    RenderCircle({0, 0}, 1.f);
+  }
+
   void Render(const Point2f& point, const Style& style) const {
     if (!style.hidden) {
-      RenderCircle(point, 0.1f, style.entity_color); /// TODO scales the dimensions of the point
+      RenderCircle(point, 0.1f * GetScale(), style.entity_color); /// TODO scales the dimensions of the point
     }
   }
 
@@ -124,7 +129,7 @@ class Renderer {
     return fit_to_screen_(geometry_position);
   }
 
-  Vector2f GetScale() const { return scale_; }
+  float GetScale() const { return scale_[0]; } /// TODO Dimensions
 
  private:
   void RenderVertex(const Vertex2f& vertex) const {
@@ -133,7 +138,7 @@ class Renderer {
     glColor3f(vertex.color[0], vertex.color[1], vertex.color[2]);
   }
 
-  void RenderVertex(const Vector2f& position, const Vector3f& color) const {
+  void RenderVertex(const Point2f& position, const Vector3f& color) const {
     auto screen_position = fit_to_screen_(position);
     glVertex2f(screen_position[0], screen_position[1]);
     glColor3f(color[0], color[1], color[2]);

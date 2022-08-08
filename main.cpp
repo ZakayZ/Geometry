@@ -8,8 +8,7 @@
 #include <GLFW/glfw3.h>
 #include <cassert>
 #include <array>
-//#include "UI.h"
-#include "Geometry2D.h"
+#include <iostream>
 
 static void glfw_error_callback(int error, const char* description) {
   fprintf(stderr, "Glfw Error %d: %s\n", error, description);
@@ -178,9 +177,7 @@ class Window {
         }
         ImGui::End();
       }
-
       /// Rendering
-
       ImGui::Render();
       int display_w, display_h;
       glfwGetFramebufferSize(window_, &display_w, &display_h);
@@ -194,16 +191,17 @@ class Window {
       ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
 
       glBegin(GL_QUADS); // Start drawing a quad primitive
-      glColor3f(1.0, 0.0, 0.0);   // red
+      glColor3f(1.0, 0.0, 0.0);
       glVertex2f(0.0f, 1.0f); // The bottom left corner
       glColor3f(0.f, 0.0f, 1.0f);
       glVertex2f(1.0f, 1.0f); // The top left corner
-      glColor3f(1.0, 0.0, 0.0);   // red
+      glColor3f(1.0, 0.0, 0.0);
       glVertex2f(1.0f, 0); // The top right corner
-      glColor3f(0.0, 1.0, 0.0);   // red
+      glColor3f(0.0, 0.0, 1.0);
       glVertex2f(0, 0); // The bottom right corner
 
       glEnd();
+
       // MyApp.Render(); /// TODO
 
       // Update and Render additional Platform Windows

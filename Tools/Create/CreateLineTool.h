@@ -11,7 +11,7 @@ class CreateLineTool : public Tool {
  public:
   CreateLineTool(Geometry2D<float>& output_geometry) : Tool(output_geometry) {}
 
-  void ProcessInput(const Point2f& clicked_pos) override {
+  void ProcessPressed(const Point2f& clicked_pos) override {
     if (line_ == nullptr) {
       output_geometry_.Push(clicked_pos);
       origin_ = std::static_pointer_cast<Point2f>(*--output_geometry_.end());
@@ -25,11 +25,17 @@ class CreateLineTool : public Tool {
   }
 
   Point2f ProcessHover(const Point2f& cursor_pos, float vicinity) override {
-    auto selected_objects = Tool::output_geometry_.Selected(cursor_pos, vicinity);
+    auto selected_objects = output_geometry_.Selected(cursor_pos, vicinity);
+    auto itself_iter = std::find(selected_objects.begin(), selected_objects.end(), line_);
+    if (line_ != nullptr && itself_iter != selected_objects.end()) {
+      selected_objects.erase(itself_iter);
+    }
+
     auto selected_points = Filter(selected_objects, {Entity::Point});
     if (line_ != nullptr && !selected_points.empty()) {
-      selected_objects = std::move(selected_points);
+      selected_objects = std::move(selected_points); /// prioritize points
     }
+
     auto new_position = ClosestPoint(cursor_pos, selected_objects);
     if (line_ != nullptr && new_position != line_->GetOrigin()) {
       line_->GetDirection() = new_position - line_->GetOrigin();

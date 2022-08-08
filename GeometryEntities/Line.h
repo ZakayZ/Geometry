@@ -5,6 +5,8 @@
 #ifndef GEOMETRY_GEOMETRY_LINE_H_
 #define GEOMETRY_GEOMETRY_LINE_H_
 
+#include <optional>
+
 #include "Void.h"
 #include "Vector.h"
 #include "Point.h"
@@ -68,6 +70,8 @@ class Line : public Void<T, Dimension> {
   Segment<T, Dimension> Projection(const Segment<T, Dimension>& segment) const;
 
   bool Intersects(const BoundaryBox<T, Dimension>& box) const;
+  std::optional<std::pair<Point<T, Dimension>, Point<T, Dimension>>> Intersection(
+      const BoundaryBox<T, Dimension>& box) const;
 
   template <size_t OutputDimension>
   Line<T, OutputDimension> Transformed(const Transform<T, Dimension, OutputDimension>& transform) const;
@@ -321,6 +325,12 @@ Segment<T, Dimension> Line<T, Dimension>::Projection(const Segment<T, Dimension>
 
 template <typename T, size_t Dimension>
 bool Line<T, Dimension>::Intersects(const BoundaryBox<T, Dimension>& box) const {
+  return Intersection(box).has_value();
+}
+
+template <typename T, size_t Dimension>
+std::optional<std::pair<Point<T, Dimension>, Point<T, Dimension>>> Line<T, Dimension>::Intersection(
+    const BoundaryBox<T, Dimension>& box) const {
   T t_min;
   T t_max;
   if ((box.GetRight()[0] - box.GetLeft()[0]) * direction_[0] > 0) {
@@ -330,7 +340,7 @@ bool Line<T, Dimension>::Intersects(const BoundaryBox<T, Dimension>& box) const 
     t_min = (box.GetRight()[0] - origin_[0]) / direction_[0];
     t_max = (box.GetLeft()[0] - origin_[0]) / direction_[0];
   }
-  for (size_t i = 0; i < Dimension; ++i) {
+  for (size_t i = 1; i < Dimension; ++i) {
     if ((box.GetRight()[i] - box.GetLeft()[i]) * direction_[i] > 0) {
       t_min = std::max(t_min, (box.GetLeft()[i] - origin_[i]) / direction_[i]);
       t_max = std::min(t_max, (box.GetRight()[i] - origin_[i]) / direction_[i]);
@@ -339,7 +349,10 @@ bool Line<T, Dimension>::Intersects(const BoundaryBox<T, Dimension>& box) const 
       t_max = std::min(t_max, (box.GetLeft()[i] - origin_[i]) / direction_[i]);
     }
   }
-  return t_min <= t_max;
+  if (t_min <= t_max) {
+    return std::make_pair(GetPoint(t_min), GetPoint(t_max));
+  }
+  return {};
 }
 
 template <typename T, size_t Dimension>

@@ -11,7 +11,7 @@ class CreateLineTool : public Tool {
  public:
   CreateLineTool(Geometry2D<float>& output_geometry) : Tool(output_geometry) {}
 
-  void ProcessInput(const Point2f& clicked_pos) override {
+  void ProcessPressed(const Point2f& clicked_pos) override {
     if (segment_ == nullptr) {
       output_geometry_.Push(Point2f(clicked_pos));
       first_point_ = std::static_pointer_cast<Point2f>(*--output_geometry_.end());

@@ -11,29 +11,32 @@
 #include "Renderer.h"
 #include "Geometry2D.h"
 #include "Tool.h"
+#include "Create/CreatePointTool.h"
+#include "Create/CreateLineTool.h"
 
 class GeometryMaster {
  public:
   GeometryMaster(size_t window_width, size_t window_height)
-      : handled_geometry_(), renderer_(window_width, window_height), chosen_tool_(std::make_unique<Tool>()) {}
+      : handled_geometry_(), renderer_(window_width, window_height),
+        chosen_tool_(std::make_unique<CreateLineTool>(handled_geometry_)) {}
   ~GeometryMaster() = default;
 
-  void ProcessWindowResize(const Vector2f& new_size) {
+  void ProcessWindowResize(const Vector2f& new_size) { /// in pixels
     renderer_.RegisterWindowScale(new_size);
   }
 
-  void ProcessWindowShift(const Vector2f shift) {
+  void ProcessWindowShift(const Vector2f shift) {  /// in pixels
     renderer_.RegisterWindowShift(shift);
   }
 
-  void ProcessWheelMovement(float wheel_delta) {
-    renderer_.RegisterCoordinateSystemScale(Vector2f(1.f, 1.f) * wheel_delta);
+  void ProcessWindowScale(float scale_change) {
+    renderer_.RegisterCoordinateSystemScale(Vector2f(1.f, 1.f) * (1 + scale_change / 10.f));
   }
 
   Point2f ProcessHover(const Point2f& cursor_position) { /// relative to window
     auto geometry_position = renderer_.MapCursorToGeometry(cursor_position);
     return renderer_.MapCursorToWindow(
-        chosen_tool_->ProcessHover(geometry_position, vicinity_ * renderer_.GetScale().Length()));
+        chosen_tool_->ProcessHover(geometry_position, vicinity_ * renderer_.GetScale()));
   }
 
   void ProcessPressed(const Point2f& click_position) { /// relative to window
@@ -52,6 +55,7 @@ class GeometryMaster {
   }
 
   void Render() {
+    renderer_.RenderCoordinateSystem();
     for (const auto& object : handled_geometry_.GetData()) {
       renderer_.Render(object, styles_[object]);
     }

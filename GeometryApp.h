@@ -9,12 +9,12 @@
 #include "GeometryMaster.h"
 #include "UI.h"
 
-void WindowResizeCallback(GLFWwindow*, int width, int height);
-
-void WindowMoveCallback(GLFWwindow*, int new_x, int new_y);
-
 class GeometryApp {
  public:
+  GeometryApp(int window_width, int widow_height)
+      : window_(window_width, widow_height), ui_(window_.ShareWindow()),
+        geometry_master_(window_width, widow_height), user_inputs_(ui_.GetIO()) {}
+
   ~GeometryApp() = default;
 
   void RunApp() {
@@ -26,55 +26,60 @@ class GeometryApp {
   }
 
  private:
-  friend class AppManager;
-  friend void WindowResizeCallback(GLFWwindow*, int, int);
-  friend void WindowMoveCallback(GLFWwindow*, int, int);
-
-  GeometryApp(int window_width, int widow_height)
-      : window_(window_width, widow_height), ui_(window_.ShareWindow()),
-        geometry_master_(window_width, widow_height), user_inputs_(ui_.GetIO()) {
-    window_.SetMoveCallback(WindowMoveCallback);
-    window_.SetResizeCallback(WindowResizeCallback);
-  }
-
   void StartFrame() {
     window_.StartFrame();
     ui_.StartFrame();
     ProcessInputs();
   }
 
-  void ProcessInputs() { /// TODO refactor
-    if (!user_inputs_.WantCaptureMouse) {
-      /// Mouse position
-      Vector2f mouse_position = {user_inputs_.MousePos.x, user_inputs_.MousePos.y};
-      Vector2f window_position = window_.GetPosition();
-      Vector2f window_size = window_.GetSize();
-      auto relative_mouse_pos = mouse_position - window_position;
-      auto frame_mouse_pos = relative_mouse_pos.InvertedScaled(window_size) * 2.f - Vector2f(1.f, 1.f);
-      frame_mouse_pos = geometry_master_.ProcessHover(frame_mouse_pos);
-      if (ImGui::IsMouseClicked(0)) {
-        geometry_master_.ProcessPressed(frame_mouse_pos);
-      }
-      if (ImGui::IsMouseDown(0)) {
-        geometry_master_.ProcessDown(frame_mouse_pos);
-      }
-      if (ImGui::IsMouseReleased(0)) {
-        geometry_master_.ProcessReleased(frame_mouse_pos);
-      }
+  void ProcessInputs() {
+    if (window_.IsResized()) {
+      OnWindowResize();
     }
 
-    if (!user_inputs_.WantCaptureKeyboard) {
+    if (window_.IsMoved()) {
+      OnWindowMove();
+    }
+
+    if (window_.IsFocused()) {  /// TODO refactor
+      /// Mouse position
+      if (!user_inputs_.WantCaptureMouse) {
+        Vector2f relative_mouse_position = window_.GetCursorPosition();
+        Vector2f window_size = window_.GetSize();
+        auto frame_mouse_pos = relative_mouse_position.InvertedScaled(window_size) * 2.f;
+        frame_mouse_pos[1] *= -1.f;
+        frame_mouse_pos += Vector2f(-1.f, 1.f);
+        frame_mouse_pos = geometry_master_.ProcessHover(frame_mouse_pos);
+        if (ImGui::IsMouseClicked(0)) {
+          geometry_master_.ProcessPressed(frame_mouse_pos);
+        }
+        if (ImGui::IsMouseDown(0)) {
+          geometry_master_.ProcessDown(frame_mouse_pos);
+        }
+        if (ImGui::IsMouseReleased(0)) {
+          geometry_master_.ProcessReleased(frame_mouse_pos);
+        }
+
+
+        /// Mouse wheel
+        if (user_inputs_.MouseWheel != 0) {
+          geometry_master_.ProcessWindowScale(user_inputs_.MouseWheel);
+        }
+      }
+
       /// ESC button
-      if (ImGui::IsKeyPressed(526)) {
-        geometry_master_.ProcessRefresh();
+      if (!user_inputs_.WantCaptureKeyboard) {
+        if (ImGui::IsKeyPressed(526)) {
+          geometry_master_.ProcessRefresh();
+        }
       }
     }
   }
 
   void RenderFrame() {
     window_.Clear();
-    ui_.Render();
     geometry_master_.Render();
+    ui_.Render();
   }
 
   void EndFrame() {
@@ -82,13 +87,16 @@ class GeometryApp {
     window_.EndFrame();
   }
 
-  void WindowResized(const Vector2f& new_size) {
-    geometry_master_.ProcessWindowResize(new_size);
+  void OnWindowResize() {
+    geometry_master_.ProcessWindowResize(window_.GetSize());
+    window_.UpdateSize();
   }
 
-  void WindowMoved(const Vector2f& new_position) {
-    Vector2f old_position = window_.GetPosition();
-    geometry_master_.ProcessWindowShift(new_position - old_position);
+  void OnWindowMove() {
+    Vector2f shift = window_.GetPosition() - window_.GetOldPosition();
+    shift[1] *= -1;
+    geometry_master_.ProcessWindowShift(shift);
+    window_.UpdatePosition();
   }
 
   Window window_;
@@ -96,39 +104,5 @@ class GeometryApp {
   GeometryMaster geometry_master_;
   ImGuiIO& user_inputs_;
 };
-
-class AppManager {
- public:
-  AppManager() = default;
-
-  AppManager(int window_width, int widow_height) {
-    if (app_ == nullptr) {
-      app_ = new GeometryApp(window_width, widow_height);
-    }
-  }
-
-  GeometryApp& GetApp() {
-    return *app_;
-  }
-
-  void DestroyApp() {
-    delete app_;
-  }
-
- private:
-  static GeometryApp* app_;
-};
-
-void WindowResizeCallback(GLFWwindow*, int width, int height) {
-  AppManager app_manager;
-  auto& app = app_manager.GetApp();
-  app.WindowResized(Vector2f(width, height));
-}
-
-void WindowMoveCallback(GLFWwindow*, int new_x, int new_y) {
-  AppManager app_manager;
-  auto& app = app_manager.GetApp();
-  app.WindowMoved(Vector2f(new_x, new_y));
-}
 
 #endif //GEOMETRY__GEOMETRYAPP_H_

@@ -27,6 +27,9 @@ class Window {
     assert(window_ != nullptr);
     glfwMakeContextCurrent(window_);
     glfwSwapInterval(1); // Enable vsync
+
+    old_position_ = GetPosition();
+    old_size_ = GetSize();
   }
 
   ~Window() {
@@ -42,13 +45,47 @@ class Window {
     return position;
   }
 
+  bool IsMoved() {
+    return old_position_ != GetPosition();
+  }
+
+  Vector2i GetOldPosition() {
+    return old_position_;
+  }
+
+  void UpdatePosition() {
+    old_position_ = GetPosition();
+  }
+
   Vector2i GetSize() {
     Vector2i size;
-    glfwGetWindowPos(window_, &size[0], &size[1]);
+    glfwGetWindowSize(window_, &size[0], &size[1]);
     return size;
   }
 
-  bool IsOpen() const {
+  bool IsResized() {
+    return old_size_ != GetSize();
+  }
+
+  Vector2i GetOldSize() {
+    return old_size_;
+  }
+
+  void UpdateSize() {
+    old_size_ = GetSize();
+  }
+
+  Vector2d GetCursorPosition() {
+    Vector2d position;
+    glfwGetCursorPos(window_, &position[0], &position[1]);
+    return position;
+  }
+
+  bool IsFocused() {
+    return glfwGetWindowAttrib(window_, GLFW_FOCUSED);
+  }
+
+  bool IsOpen() {
     return !glfwWindowShouldClose(window_);
   }
 
@@ -74,7 +111,7 @@ class Window {
   template <class Func>
   void SetResizeCallback(Func function) {
     glfwSetWindowSizeCallback(window_, function); /// TODO if doesnt work use Frame buffer size
-  }
+  }      ///////////////////////////////////////// DOESNT WORK!!!!!!!!!!!!
 
   template <class Func>
   void SetMoveCallback(Func function) {
@@ -83,6 +120,9 @@ class Window {
 
  private:
   GLFWwindow* window_;
+
+  Vector2i old_position_;
+  Vector2i old_size_;
   std::array<float, 4> clear_color = {0.45f, 0.55f, 0.60f, 1.00f};
 };
 

@@ -53,13 +53,18 @@ class Geometry2D {
   std::list<std::shared_ptr<Void2<T>>> Selected(const Point2<T>& selection_position,
                                                 const T& vicinity_distance = 0) const {
     std::list<std::shared_ptr<Void2<T>>> found;
-    auto is_close = vicinity_distance == 0
-                    ? [&selection_position](const std::shared_ptr<Void2<T>>& object_ptr) {
-          return object_ptr->Contains(selection_position);
-        }
-                    : [&vicinity_distance, &selection_position](const std::shared_ptr<Void2<T>>& object_ptr) {
-          return object_ptr->SquaredDistance(selection_position) <= vicinity_distance;
-        };
+    std::function<bool(const std::shared_ptr<Void2<T>>&)> is_close;
+    if (vicinity_distance == 0) {
+      is_close = [&selection_position](const std::shared_ptr<Void2<
+          T>>& object_ptr) {
+        return object_ptr->Contains(selection_position);
+      };
+    } else {
+      is_close = [&vicinity_distance, &selection_position](const std::shared_ptr<
+          Void2<T>>& object_ptr) {
+        return object_ptr->SquaredDistance(selection_position) <= vicinity_distance;
+      };
+    }
 
     for (const auto& object_ptr : geometric_objects_) {
       if (is_close(object_ptr)) {
