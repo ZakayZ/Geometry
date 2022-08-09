@@ -75,12 +75,6 @@ class Window {
     old_size_ = GetSize();
   }
 
-  Vector2d GetCursorPosition() {
-    Vector2d position;
-    glfwGetCursorPos(window_, &position[0], &position[1]);
-    return position;
-  }
-
   bool IsFocused() {
     return glfwGetWindowAttrib(window_, GLFW_FOCUSED);
   }

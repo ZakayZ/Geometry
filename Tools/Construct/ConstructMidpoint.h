@@ -7,9 +7,9 @@
 
 #include "Tool.h"
 
-class CreateMidpoint : public Tool {
+class ConstructMidpoint : public Tool {
  public:
-  CreateMidpoint(Geometry2D<float>& output_geometry) : Tool(output_geometry) {}
+  ConstructMidpoint(Geometry2D<float>& output_geometry) : Tool(output_geometry) {}
 
   void ProcessPressed(const Point2f& clicked_pos) override {
     auto selected_points = Filter(output_geometry_.Selected(clicked_pos), {Entity::Point});
@@ -32,8 +32,8 @@ class CreateMidpoint : public Tool {
     }
   }
 
-  Point2f ProcessHover(const Point2f& cursor_pos) override {
-    auto selected_objects = output_geometry_.Selected(cursor_pos);
+  Point2f ProcessHover(const Point2f& cursor_pos, float vicinity) override {
+    auto selected_objects = output_geometry_.Selected(cursor_pos, vicinity);
     selected_objects = Filter(selected_objects, {Entity::Point});
     return ClosestPoint(cursor_pos, selected_objects);;
   }

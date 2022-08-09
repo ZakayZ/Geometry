@@ -7,9 +7,9 @@
 
 #include "Tool.h"
 
-class CreateMidpoint : public Tool {
+class ConstructProjection : public Tool {
  public:
-  CreateMidpoint(Geometry2D<float>& output_geometry) : Tool(output_geometry) {}
+  ConstructProjection(Geometry2D<float>& output_geometry) : Tool(output_geometry) {}
 
   void ProcessPressed(const Point2f& clicked_pos) override {
     auto selected_objects = output_geometry_.Selected(clicked_pos);

@@ -5,15 +5,21 @@
 #ifndef GEOMETRY__GEOMETRYAPP_H_
 #define GEOMETRY__GEOMETRYAPP_H_
 
+#include <unordered_map>
+
 #include "Window.h"
 #include "GeometryMaster.h"
 #include "UI.h"
+#include "UserInputs.h"
 
 class GeometryApp {
  public:
   GeometryApp(int window_width, int widow_height)
       : window_(window_width, widow_height), ui_(window_.ShareWindow()),
-        geometry_master_(window_width, widow_height), user_inputs_(ui_.GetIO()) {}
+        geometry_master_(window_width, widow_height),
+        user_inputs_(ui_.GetIO(), window_.ShareWindow()) {
+    ui_.SetUserInputs(user_inputs_);
+  }
 
   ~GeometryApp() = default;
 
@@ -43,36 +49,37 @@ class GeometryApp {
 
     if (window_.IsFocused()) {  /// TODO refactor
       /// Mouse position
-      if (!user_inputs_.WantCaptureMouse) {
-        Vector2f relative_mouse_position = window_.GetCursorPosition();
-        Vector2f window_size = window_.GetSize();
-        auto frame_mouse_pos = relative_mouse_position.InvertedScaled(window_size) * 2.f;
-        frame_mouse_pos[1] *= -1.f;
-        frame_mouse_pos += Vector2f(-1.f, 1.f);
-        frame_mouse_pos = geometry_master_.ProcessHover(frame_mouse_pos);
-        if (ImGui::IsMouseClicked(0)) {
-          geometry_master_.ProcessPressed(frame_mouse_pos);
+      if (user_inputs_.HasMouseInput()) {
+        auto mouse_pos = user_inputs_.GetMousePos();
+        auto snapped_mouse_pos = geometry_master_.ProcessHover(mouse_pos);
+        if (user_inputs_.HasClicked()) {
+          geometry_master_.ProcessPressed(snapped_mouse_pos);
         }
-        if (ImGui::IsMouseDown(0)) {
-          geometry_master_.ProcessDown(frame_mouse_pos);
+        if (user_inputs_.HasPressed()) {
+          geometry_master_.ProcessDown(snapped_mouse_pos);
         }
-        if (ImGui::IsMouseReleased(0)) {
-          geometry_master_.ProcessReleased(frame_mouse_pos);
+        if (user_inputs_.HasReleased()) {
+          geometry_master_.ProcessReleased(snapped_mouse_pos);
         }
-
 
         /// Mouse wheel
-        if (user_inputs_.MouseWheel != 0) {
-          geometry_master_.ProcessWindowScale(user_inputs_.MouseWheel);
+        if (user_inputs_.HasScaleInput()) {
+          geometry_master_.ProcessWindowScale(user_inputs_.GetScale());
         }
       }
 
       /// ESC button
-      if (!user_inputs_.WantCaptureKeyboard) {
-        if (ImGui::IsKeyPressed(526)) {
+      if (user_inputs_.HasKeyboardInput()) {
+        if (user_inputs_.HasRefreshInput()) {
           geometry_master_.ProcessRefresh();
         }
       }
+    }
+
+    if (user_inputs_.HasChangeTool()) {
+      std::cout << "changed\n";
+      std::cout << (user_inputs_.GetToolType() == ToolType::Inspect_Navigate) << '\n';
+      geometry_master_.ChangeTool(user_inputs_.GetToolType());
     }
   }
 
@@ -102,7 +109,7 @@ class GeometryApp {
   Window window_;
   UI ui_;
   GeometryMaster geometry_master_;
-  ImGuiIO& user_inputs_;
+  UserInputs user_inputs_;
 };
 
 #endif //GEOMETRY__GEOMETRYAPP_H_

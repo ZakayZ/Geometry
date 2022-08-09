@@ -7,9 +7,9 @@
 
 #include "Tool.h"
 
-class CreateLineTool : public Tool {
+class CreateSegmentTool : public Tool {
  public:
-  CreateLineTool(Geometry2D<float>& output_geometry) : Tool(output_geometry) {}
+  CreateSegmentTool(Geometry2D<float>& output_geometry) : Tool(output_geometry) {}
 
   void ProcessPressed(const Point2f& clicked_pos) override {
     if (segment_ == nullptr) {

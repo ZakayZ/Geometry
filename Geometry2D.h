@@ -36,11 +36,6 @@ class Geometry2D {
     geometric_objects_.push_back(std::make_shared<U>(object));
   }
 
-  template <typename U>
-  void Push(U&& object) {
-    geometric_objects_.push_back(std::make_shared<U>(std::move(object)));
-  }
-
   void Erase(const std::shared_ptr<Void2<T>> object_ptr) {
     for (auto it = geometric_objects_.begin(); it != geometric_objects_.end(); ++it) {
       if (object_ptr == *it) {
