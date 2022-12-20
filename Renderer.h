@@ -51,13 +51,12 @@ class Renderer {
   }
 
   void RegisterCoordinateSystemShift(const Vector2f& shift) {
-    window_box_.ApplyTransform(Translate(shift)); /// TODO fix if doesnt work
+    window_box_.ApplyTransform(Translate(Inverted(fit_to_screen_)(shift)));
     RecalculateTransform();
   }
 
-  void RegisterCoordinateSystemScale(const Vector2f& scale) {
-    auto center = window_box_.GetCenter();
-    window_box_.ApplyTransform(Scale(scale, center));
+  void RegisterCoordinateSystemScale(const Vector2f& scale, const Point2f& cursor_position) {
+    window_box_.ApplyTransform(Scale(scale, cursor_position));
     scale_ *= scale;
     RecalculateTransform();
   }

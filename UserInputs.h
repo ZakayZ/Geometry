@@ -27,7 +27,7 @@ class UserInputs {
 
   bool HasClicked() const { return ImGui::IsMouseClicked(0); }
 
-  bool HasPressed() const { return ImGui::IsMouseDown(0); }
+  bool IsDown() const { return ImGui::IsMouseDown(0); }
 
   bool HasReleased() const { return ImGui::IsMouseReleased(0); }
 

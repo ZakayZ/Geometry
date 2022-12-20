@@ -13,28 +13,27 @@ class InspectNavigateTool : public Tool {
   InspectNavigateTool(Geometry2D<float>& output_geometry, Renderer& move_renderer)
       : Tool(output_geometry), move_renderer_(move_renderer) {}
 
-  virtual ~InspectNavigateTool() = default;
-
-  virtual void ProcessPressed(const Point2f& clicked_pos) {
-    last_position_ = clicked_pos;
-    initial_position_ = clicked_pos;
+  void ProcessPressed(const Point2f& clicked_pos) override {
+    initial_position_ = last_position_ = move_renderer_.MapCursorToWindow(clicked_pos);
     tracking = true;
   }
 
-  virtual void ProcessDown(const Point2f& cursor_pos) {
+  void ProcessDown(const Point2f& cursor_pos) override {
     if (tracking) {
-      move_renderer_.RegisterCoordinateSystemShift(cursor_pos - last_position_);
-      last_position_ = cursor_pos;
+      auto screen_pos = move_renderer_.MapCursorToWindow(cursor_pos);
+      move_renderer_.RegisterCoordinateSystemShift(last_position_ - screen_pos);
+      last_position_ = screen_pos;
     }
   }
 
-  virtual void ProcessReleased(const Point2f& cursor_pos) {
+  void ProcessReleased(const Point2f& cursor_pos) override {
     ProcessDown(cursor_pos);
     tracking = false;
   }
 
-  virtual void Refresh() {
-    ProcessReleased(initial_position_);
+  void Refresh() override {
+    move_renderer_.RegisterCoordinateSystemShift(last_position_ - initial_position_);
+    tracking = false;
   }
 
  private:

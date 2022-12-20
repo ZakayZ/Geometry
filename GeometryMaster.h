@@ -40,8 +40,8 @@ class GeometryMaster {
     renderer_.RegisterWindowShift(shift);
   }
 
-  void ProcessWindowScale(float scale) {
-    renderer_.RegisterCoordinateSystemScale(Vector2f(1.f, 1.f) * scale);
+  void ProcessWindowScale(float scale, const Point2f& cursor_position) {
+    renderer_.RegisterCoordinateSystemScale(Vector2f(1.f, 1.f) * scale, renderer_.MapCursorToGeometry(cursor_position));
   }
 
   Point2f ProcessHover(const Point2f& cursor_position) { /// relative to window
@@ -86,7 +86,7 @@ class GeometryMaster {
         break;
       }
       case ToolType::Inspect_Delete: {
-//        chosen_tool_ = std::make_unique<InspectDeleteTool>(handled_geometry_);
+        chosen_tool_ = std::make_unique<InspectDeleteTool>(handled_geometry_, styles_);
         break;
       }
       case ToolType::Construct_Midpoint: {

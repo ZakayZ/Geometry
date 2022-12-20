@@ -57,7 +57,7 @@ class Vector {
 
   Vector& Normalise();
 
-  Vector& ClampMagnitude(const T& new_magnitude);
+  Vector& SetMagnitude(T new_magnitude);
 
   Vector& Scale(const Vector& scale_vector);
 
@@ -84,8 +84,8 @@ class Vector {
   Vector& operator+=(const Vector& other);
   Vector& operator-=(const Vector& other);
   Vector& operator*=(const Vector& other);
-  Vector& operator*=(const T& scalar);
-  Vector& operator/=(const T& scalar);
+  Vector& operator*=(T scalar);
+  Vector& operator/=(T scalar);
 
  private:
   template <typename U>
@@ -129,13 +129,13 @@ template <typename T, size_t Dimension>
 T operator*(const Vector<T, Dimension>& a, const Vector<T, Dimension>& b);
 
 template <typename T, size_t Dimension, typename U, typename = std::enable_if_t<std::is_constructible_v<T, U>>>
-Vector<T, Dimension> operator*(const Vector<T, Dimension>& v, const U& scalar);
+Vector<T, Dimension> operator*(const Vector<T, Dimension>& v, U scalar);
 
 template <typename T, size_t Dimension, typename U, typename = std::enable_if_t<std::is_constructible_v<T, U>>>
 Vector<T, Dimension> operator*(const U& scalar, const Vector<T, Dimension>& v);
 
 template <typename T, size_t Dimension, typename U, typename = std::enable_if_t<std::is_constructible_v<T, U>>>
-Vector<T, Dimension> operator/(const Vector<T, Dimension>& v, const U& scalar);
+Vector<T, Dimension> operator/(const Vector<T, Dimension>& v, U scalar);
 
 template <typename T, size_t Dimension>
 Vector<T, Dimension> operator-(const Vector<T, Dimension>& vector);
@@ -254,7 +254,7 @@ Vector<T, Dimension>& Vector<T, Dimension>::Normalise() {
 }
 
 template <typename T, size_t Dimension>
-Vector<T, Dimension>& Vector<T, Dimension>::ClampMagnitude(const T& new_magnitude) {
+Vector<T, Dimension>& Vector<T, Dimension>::SetMagnitude(T new_magnitude) {
   *this *= new_magnitude / Length();
   return *this;
 }
@@ -330,7 +330,7 @@ Vector<T, Dimension>& Vector<T, Dimension>::operator*=(const Vector& other) {
 }
 
 template <typename T, size_t Dimension>
-Vector<T, Dimension>& Vector<T, Dimension>::operator*=(const T& scalar) {
+Vector<T, Dimension>& Vector<T, Dimension>::operator*=(T scalar) {
   for (size_t i = 0; i < Dimension; ++i) {
     operator[](i) *= scalar;
   }
@@ -338,7 +338,7 @@ Vector<T, Dimension>& Vector<T, Dimension>::operator*=(const T& scalar) {
 }
 
 template <typename T, size_t Dimension>
-Vector<T, Dimension>& Vector<T, Dimension>::operator/=(const T& scalar) {
+Vector<T, Dimension>& Vector<T, Dimension>::operator/=(T scalar) {
   for (size_t i = 0; i < Dimension; ++i) {
     operator[](i) /= scalar;
   }
@@ -382,7 +382,7 @@ T operator*(const Vector<T, Dimension>& a, const Vector<T, Dimension>& b) {
 }
 
 template <typename T, size_t Dimension, typename U, typename>
-Vector<T, Dimension> operator*(const Vector<T, Dimension>& v, const U& scalar) {
+Vector<T, Dimension> operator*(const Vector<T, Dimension>& v, U scalar) {
   auto copy = v;
   copy *= scalar;
   return copy;
@@ -396,7 +396,7 @@ Vector<T, Dimension> operator*(const U& scalar, const Vector<T, Dimension>& v) {
 }
 
 template <typename T, size_t Dimension, typename U, typename>
-Vector<T, Dimension> operator/(const Vector<T, Dimension>& v, const U& scalar) {
+Vector<T, Dimension> operator/(const Vector<T, Dimension>& v, U scalar) {
   auto copy = v;
   copy /= scalar;
   return copy;

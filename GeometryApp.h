@@ -55,7 +55,7 @@ class GeometryApp {
         if (user_inputs_.HasClicked()) {
           geometry_master_.ProcessPressed(snapped_mouse_pos);
         }
-        if (user_inputs_.HasPressed()) {
+        if (user_inputs_.IsDown()) {
           geometry_master_.ProcessDown(snapped_mouse_pos);
         }
         if (user_inputs_.HasReleased()) {
@@ -64,7 +64,7 @@ class GeometryApp {
 
         /// Mouse wheel
         if (user_inputs_.HasScaleInput()) {
-          geometry_master_.ProcessWindowScale(user_inputs_.GetScale());
+          geometry_master_.ProcessWindowScale(user_inputs_.GetScale(), snapped_mouse_pos);
         }
       }
 
@@ -77,8 +77,6 @@ class GeometryApp {
     }
 
     if (user_inputs_.HasChangeTool()) {
-      std::cout << "changed\n";
-      std::cout << (user_inputs_.GetToolType() == ToolType::Inspect_Navigate) << '\n';
       geometry_master_.ChangeTool(user_inputs_.GetToolType());
     }
   }
